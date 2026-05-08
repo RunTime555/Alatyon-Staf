@@ -1,34 +1,38 @@
 "use client";
 
-import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { mockPatient } from "@/lib/mock-data";
+import { Bell, Search } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
-export function Header({ title }) {
+export function Header({ title, userType = "patient" }) {
+  
+  // እንደ ተጠቃሚው አይነት መረጃውን እናዘጋጅ
+  let userData = { name: "Rehmet M.", role: "Patient", initial: "RM", color: "bg-[#004a7c]" };
+
+  if (userType === "technician") {
+    userData = { name: "Abebe (Lab Tech)", role: "Laboratory Technician", initial: "LT", color: "bg-blue-600" };
+  } else if (userType === "doctor") {
+    userData = { name: "Dr. Abraham", role: "Medical Doctor", initial: "DR", color: "bg-emerald-600" };
+  }
+
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 w-full">
-      <div className="flex items-center gap-4">
-        <div className="w-10 lg:hidden" />
-        {title && (
-          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-        )}
+    <header className="h-16 border-b bg-white flex items-center justify-between px-6 sticky top-0 z-30">
+      <div>
+        <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">{title}</h2>
       </div>
-      
+
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <span className="absolute -top-1 -right-1 h-2 w-2 bg-destructive rounded-full" />
-        </Button>
-        
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pl-4 border-l border-slate-100">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium">{mockPatient.fullName}</p>
-            <p className="text-xs text-muted-foreground">ID: #{mockPatient.mrn}</p>
+            <p className="text-xs font-black text-slate-800 leading-none">{userData.name}</p>
+            <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">
+              {userData.role}
+            </p>
           </div>
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={mockPatient.avatar} alt={mockPatient.fullName} />
-            <AvatarFallback>{mockPatient.firstName[0]}</AvatarFallback>
+          <Avatar className="h-9 w-9 border-2 border-slate-100">
+            <AvatarFallback className={cn("text-white text-xs font-black", userData.color)}>
+              {userData.initial}
+            </AvatarFallback>
           </Avatar>
         </div>
       </div>

@@ -7,10 +7,10 @@ import {
   LayoutDashboard,
   FlaskConical,
   User,
-  Users,
   LogOut,
   Menu,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,8 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/results", label: "Lab Results", icon: FlaskConical },
   { href: "/profile", label: "Profile", icon: User },
-  { href: "/patients", label: "Patients", icon: Users },
 ];
 
-// እዚህ ጋር 'default' የሚለው ቃል ተጨምሯል
 export default function Sidebar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -33,9 +31,8 @@ export default function Sidebar() {
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-4 left-4 z-50 lg:hidden text-foreground"
+        className="fixed top-4 left-4 z-50 lg:hidden text-foreground bg-white shadow-sm border"
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        aria-label="Toggle menu"
       >
         {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
       </Button>
@@ -43,7 +40,7 @@ export default function Sidebar() {
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-foreground/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -51,29 +48,26 @@ export default function Sidebar() {
       {/* Sidebar aside */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-full w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50 transition-transform duration-300",
+          "fixed left-0 top-0 h-full w-64 bg-[#004a7c] text-white flex flex-col z-50 transition-transform duration-300 shadow-xl",
           "lg:translate-x-0",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Logo Section */}
-        <div className="p-6 border-b border-sidebar-border">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">+</span>
+        <div className="p-6 border-b border-white/10">
+          <Link href="/dashboard" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-105">
+              <span className="text-[#004a7c] font-black text-xl">+</span>
             </div>
             <div>
-              <h1 className="font-semibold text-lg text-sidebar-foreground">Alatyon</h1>
-              <p className="text-xs text-sidebar-foreground/70">Hospital</p>
+              <h1 className="font-bold text-lg leading-none">Alatyon</h1>
+              <p className="text-[10px] text-blue-200 uppercase font-bold tracking-widest mt-1">Hospital</p>
             </div>
           </Link>
-          <p className="text-xs text-sidebar-foreground/60 mt-2 uppercase tracking-wide">
-            Patient Lab Result Portal
-          </p>
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-2 mt-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
@@ -82,28 +76,42 @@ export default function Sidebar() {
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200",
                   isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    ? "bg-white text-[#004a7c] shadow-md"
+                    : "text-blue-100 hover:bg-white/10 hover:text-white"
                 )}
               >
-                <item.icon className="h-5 w-5" />
+                <item.icon className={cn("h-5 w-5", isActive ? "text-[#004a7c]" : "text-blue-300")} />
                 {item.label}
               </Link>
             );
           })}
         </nav>
 
-        {/* Logout Section */}
-        <div className="p-4 border-t border-sidebar-border">
-          <Link
-            href="/"
-            className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
-          >
-            <LogOut className="h-5 w-5" />
-            Logout
-          </Link>
+        {/* Bottom Section: Info & Logout */}
+        <div className="p-4 mt-auto space-y-4">
+          
+          {/* Copyright Info - Here is your footer replacement */}
+          <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+            <div className="flex items-center gap-2 mb-1">
+              <ShieldCheck className="h-3 w-3 text-blue-300" />
+              <p className="text-[10px] font-bold text-blue-200 uppercase tracking-tight">Verified Portal</p>
+            </div>
+            <p className="text-[9px] text-blue-100/60 leading-tight">
+              © 2026 Alatyon Health. <br /> All rights reserved.
+            </p>
+          </div>
+
+          <div className="border-t border-white/10 pt-4">
+            <Link
+              href="/"
+              className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-300 hover:bg-red-500/10 rounded-xl transition-all"
+            >
+              <LogOut className="h-5 w-5" />
+              Logout
+            </Link>
+          </div>
         </div>
       </aside>
     </>
