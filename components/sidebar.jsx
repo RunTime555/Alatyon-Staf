@@ -22,7 +22,8 @@ const navItems = [
   { href: "/patients", label: "Patients", icon: Users },
 ];
 
-export function Sidebar() {
+// እዚህ ጋር 'default' የሚለው ቃል ተጨምሯል
+export default function Sidebar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -47,7 +48,7 @@ export function Sidebar() {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar aside */}
       <aside
         className={cn(
           "fixed left-0 top-0 h-full w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50 transition-transform duration-300",
@@ -55,7 +56,7 @@ export function Sidebar() {
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* Logo */}
+        {/* Logo Section */}
         <div className="p-6 border-b border-sidebar-border">
           <Link href="/dashboard" className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
@@ -71,7 +72,7 @@ export function Sidebar() {
           </p>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation Links */}
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -94,7 +95,7 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Logout */}
+        {/* Logout Section */}
         <div className="p-4 border-t border-sidebar-border">
           <Link
             href="/"

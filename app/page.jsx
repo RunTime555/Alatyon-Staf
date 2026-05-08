@@ -3,11 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Building2, Lock } from "lucide-react";
+import { Building2, Lock, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Footer } from "@/components/footer";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,10 +20,9 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    // Simulate API call - replace with actual backend call
+    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // For demo purposes, accept any credentials
     if (mrn && password) {
       router.push("/dashboard");
     } else {
@@ -41,10 +39,8 @@ export default function LoginPage() {
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-cyan-200/20 rounded-full blur-3xl" />
       </div>
 
-      {/* Main content */}
       <main className="flex-1 flex items-center justify-center px-4 py-12 relative z-10">
         <div className="w-full max-w-md">
-          {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-primary italic mb-2">
               Welcome Back
@@ -54,7 +50,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Login Card */}
           <div className="bg-card rounded-xl shadow-lg border border-border p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
@@ -107,33 +102,40 @@ export default function LoginPage() {
                 {isLoading ? "Signing in..." : "Login"}
               </Button>
 
-              <div className="text-center">
+              <div className="text-center space-y-4">
+                {/* 1. Forgot Password አሁን ሊንክ ነው */}
                 <Link
-                  href="#"
-                  className="text-sm text-primary hover:underline font-medium"
+                  href="/forgot-password"
+                  className="text-sm text-primary hover:underline font-medium block"
                 >
                   Forgot Password?
                 </Link>
+
+                {/* 2. መስመሩ (border-t) ተነስቷል */}
+                <div className="pt-2">
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Don't have an account?
+                  </p>
+                  <Link
+                    href="/register"
+                    className="inline-flex items-center gap-2 text-sm text-primary font-bold hover:text-primary/80 transition-colors"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Create an Account
+                  </Link>
+                </div>
               </div>
             </form>
-          </div>
-
-          {/* Support Info */}
-          <div className="text-center mt-8">
-            <p className="text-sm text-muted-foreground">
-              Need help accessing your account?
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Contact the support desk at{" "}
-              <Link href="tel:1-800-ALATYON" className="text-primary font-medium hover:underline">
-                1-800-ALATYON
-              </Link>
-            </p>
           </div>
         </div>
       </main>
 
-      <Footer />
+      {/* 3. Footer ማስተካከያ - መሃል ላይ እና የተጠየቀው ጽሁፍ ብቻ */}
+     <footer className="w-full py-6 mt-auto border-t border-border bg-background/50 backdrop-blur-sm text-center">
+        <p className="text-sm text-muted-foreground">
+          © 2026 Alatyon Hospital. All rights reserved.
+        </p>
+      </footer>
     </div>
   );
 }
