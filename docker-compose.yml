@@ -1,5 +1,4 @@
 services:
-  # 1. ፍሮንት-ኤንድ (እየተስተካከለ ያለ)
   frontend:
     build:
       context: .
@@ -7,23 +6,11 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/app # ይህ ኮዱ ሲቀየር ዶከር ውስጥ እንዲቀየር ያደርጋል
+      - .:/app
       - /app/node_modules
+    env_file:
+      - .env  # ይህ ፋይል በውስጡ ያለውን DATABASE_URL እንዲያነብ ያደርገዋል
     environment:
       - NODE_ENV=development
 
-  # 2. ዳታቤዝ (አሁኑኑ መጀመር ያለበት)
-  db:
-    image: postgres:15-alpine
-    container_name: alatyon_db
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: lab_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+# የ "db" ክፍል ተሰርዟል ምክንያቱም Neon ስለምንጠቀም
