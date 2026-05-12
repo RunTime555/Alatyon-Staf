@@ -11,13 +11,41 @@ import { Label } from "@/components/ui/label";
 export default function RegisterPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  
+  // ፎርም ዳታ መያዣ
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: ""
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      router.push("/");
-    }, 1500);
+    setError("");
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // ከተሳካ ወደ ሎጊን ገጽ እንመልሰዋለን
+        alert("Account created successfully!");
+        router.push("/");
+      } else {
+        setError(data.message || "Registration failed");
+      }
+    } catch (err) {
+      setError("Connection error. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -31,11 +59,23 @@ export default function RegisterPage() {
 
           <div className="bg-card rounded-xl shadow-lg border border-border p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <div className="p-3 text-sm text-red-500 bg-red-100 border border-red-200 rounded-lg">
+                  {error}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input id="name" placeholder="Enter Full Name" className="pl-10 h-12 bg-muted border-0" required />
+                  <Input 
+                    id="name" 
+                    placeholder="Enter Full Name" 
+                    className="pl-10 h-12 bg-muted border-0" 
+                    required 
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
                 </div>
               </div>
 
@@ -43,7 +83,14 @@ export default function RegisterPage() {
                 <Label htmlFor="email">Email Address</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input id="email" type="email" placeholder="name@example.com" className="pl-10 h-12 bg-muted border-0" required />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="name@example.com" 
+                    className="pl-10 h-12 bg-muted border-0" 
+                    required 
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  />
                 </div>
               </div>
 
@@ -51,7 +98,14 @@ export default function RegisterPage() {
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input id="password" type="password" placeholder="••••••••" className="pl-10 h-12 bg-muted border-0" required />
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    placeholder="••••••••" 
+                    className="pl-10 h-12 bg-muted border-0" 
+                    required 
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  />
                 </div>
               </div>
 

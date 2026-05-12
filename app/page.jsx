@@ -20,13 +20,30 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // ወደ ፈጠርነው API ጥያቄ እንልካለን
+      // ማስታወሻ: ባክኢንዱ 'email' ስለሚጠብቅ mrn-ን እንደ email እንልካለን
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: mrn, 
+          password: password 
+        }),
+      });
 
-    if (mrn && password) {
-      router.push("/dashboard");
-    } else {
-      setError("Please enter your MRN and password");
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // ሎጊን ከተሳካ ቶከኑ በኩኪ ውስጥ ተቀምጧል፣ ወደ ዳሽቦርድ እንልካለን
+        router.push("/dashboard");
+      } else {
+        // ስህተት ካለ እናሳያለን
+        setError(data.error || "Login failed. Please check your credentials.");
+        setIsLoading(false);
+      }
+    } catch (err) {
+      setError("Server connection failed. Is the backend running?");
       setIsLoading(false);
     }
   };
@@ -103,7 +120,6 @@ export default function LoginPage() {
               </Button>
 
               <div className="text-center space-y-4">
-                {/* 1. Forgot Password አሁን ሊንክ ነው */}
                 <Link
                   href="/forgot-password"
                   className="text-sm text-primary hover:underline font-medium block"
@@ -111,7 +127,6 @@ export default function LoginPage() {
                   Forgot Password?
                 </Link>
 
-                {/* 2. መስመሩ (border-t) ተነስቷል */}
                 <div className="pt-2">
                   <p className="text-sm text-muted-foreground mb-1">
                     Don't have an account?
@@ -130,8 +145,7 @@ export default function LoginPage() {
         </div>
       </main>
 
-      {/* 3. Footer ማስተካከያ - መሃል ላይ እና የተጠየቀው ጽሁፍ ብቻ */}
-     <footer className="w-full py-6 mt-auto border-t border-border bg-background/50 backdrop-blur-sm text-center">
+      <footer className="w-full py-6 mt-auto border-t border-border bg-background/50 backdrop-blur-sm text-center">
         <p className="text-sm text-muted-foreground">
           © 2026 Alatyon Hospital. All rights reserved.
         </p>
