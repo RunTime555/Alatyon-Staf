@@ -107,43 +107,57 @@ export default function LabUploadPage() {
     <div className="min-h-screen bg-slate-50 flex font-sans">
       
       {/* SIDEBAR */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 transition-transform duration-300 transform 
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
-        <div className="p-6 h-full flex flex-col">
-          <div className="flex items-center gap-2 mb-8 px-2">
-            <div className="bg-blue-600 p-1.5 rounded-lg text-white"><Activity size={18}/></div>
-            <h2 className="font-bold text-slate-800 text-sm uppercase tracking-tight">Recent Submissions</h2>
-          </div>
-          <div className="relative mb-6">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <input 
-              placeholder="Search MRN..." 
-              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-xs outline-none"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-3">
-            {groupedResults.map((group) => (
-              <div key={group.mrn} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-200 transition-all">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-[10px]">
-                    {group.name.substring(0,1)}
-                  </div>
-                  <h4 className="font-bold text-slate-800 text-[11px] truncate">{group.name}</h4>
-                </div>
-                <div className="flex flex-wrap gap-1">
+<aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 transition-transform duration-300 transform 
+  ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
+  <div className="p-6 h-full flex flex-col">
+    <div className="flex items-center gap-2 mb-8 px-2">
+      <div className="bg-blue-600 p-1.5 rounded-lg text-white"><Activity size={18}/></div>
+      <h2 className="font-bold text-slate-800 text-sm uppercase tracking-tight">Recent Submissions</h2>
+    </div>
+    
+    <div className="relative mb-6">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+      <input 
+        placeholder="Search MRN..." 
+        className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-xs outline-none"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+    </div>
+
+    {/* የሳይድባር ይዘት ወደ Table ተቀይሯል */}
+    <div className="flex-1 overflow-y-auto">
+      <table className="w-full text-xs">
+        <thead className="text-slate-400 uppercase text-[9px]">
+          <tr>
+            <th className="text-left pb-2">Name</th>
+            <th className="text-left pb-2">Test/Result</th>
+          </tr>
+        </thead>
+        <tbody className="space-y-4">
+          {groupedResults.map((group) => (
+            <tr key={group.mrn} className="border-t border-slate-100">
+              <td className="py-3 font-bold text-slate-800 align-top">
+                {group.name.split(' ')[0]}
+                <div className="text-[9px] text-slate-400 font-normal">{group.mrn}</div>
+              </td>
+              <td className="py-3">
+                <div className="flex flex-col gap-1">
                   {group.tests.map((t, idx) => (
-                    <Badge key={idx} variant="secondary" className="bg-white text-[9px] font-medium py-0 px-1">
-                      {t.testName}: {t.testValue}
-                    </Badge>
+                    <div key={idx} className="flex justify-between bg-slate-50 p-1 rounded">
+                      <span className="truncate w-16">{t.testName}</span>
+                      <span className="font-bold text-blue-600">{t.resultValue}</span>
+                    </div>
                   ))}
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </aside>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</aside>
 
       {/* MAIN PANEL */}
       <main className="flex-1 md:ml-72 min-h-screen">
