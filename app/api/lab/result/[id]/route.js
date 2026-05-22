@@ -1,26 +1,25 @@
+// GET /api/lab/result/:id
+// Returns a single lab result with patient info
+// ============================================================
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
-
-export async function GET(request, { params }) {
-  const { id } = params;
-
+import { prisma } from "@/lib/prisma";
+ 
+export async function GET(req, { params }) {
   try {
+    const { id } = await params;           // ✅ Next.js 15 — await params
+ 
     const result = await prisma.labResult.findUnique({
-      where: { id: id },
-      include: {
-        patient: true, // የታካሚውን ስም እና MRN ለማካተት
-      },
+      where: { id },
+      include: { patient: true },
     });
-
+ 
     if (!result) {
-      return NextResponse.json({ error: "Result not found" }, { status: 404 });
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
-
+ 
     return NextResponse.json(result);
-  } catch (error) {
-    console.error("Database error:", error);
+  } catch (err) {
+    console.error("GET_RESULT:", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
