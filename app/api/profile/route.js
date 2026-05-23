@@ -1,54 +1,87 @@
+// app/api/profile/route.js
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-export async function GET(request) {
+export async function GET() {
   try {
-    const token = request.cookies.get("token")?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const decoded = verifyToken(token);
+    if (!decoded?.id) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { 
-        name: true, email: true, mrn: true, phone: true, 
-        address: true, image: true, bloodGroup: true,
-        emergencyContact: true, emergencyPhone: true, 
-        occupation: true, dob: true 
-      }
+      select: {
+        id: true, name: true, email: true, phone: true,
+        address: true, mrn: true, image: true,
+        bloodGroup: true, emergencyContact: true,
+        emergencyPhone: true, occupation: true,
+        dob: true, role: true,
+      },
     });
-    return NextResponse.json(user);
-  } catch (error) {
-    return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
+
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    // ✅ Serialize dob to plain string for the frontend date input
+    return NextResponse.json({
+      ...user,
+      dob: user.dob ? user.dob.toISOString().split("T")[0] : null,
+    });
+  } catch (err) {
+    console.error("GET_PROFILE:", err);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-export async function PUT(request) {
+export async function PUT(req) {
   try {
-    const token = request.cookies.get("token")?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
     if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const decoded = verifyToken(token);
-    const body = await request.json();
+    if (!decoded?.id) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
-    const updatedUser = await prisma.user.update({
+    const body = await req.json();
+    const {
+      name, phone, address, image,
+      bloodGroup, emergencyContact,
+      emergencyPhone, occupation, dob,
+    } = body;
+
+    // ✅ Convert dob string → DateTime (Prisma requires DateTime, not plain string)
+    const dobDate = dob ? new Date(dob) : null;
+
+    // ✅ Only update fields that were actually sent (avoid overwriting with undefined)
+    const data = {};
+    if (name             !== undefined) data.name             = name;
+    if (phone            !== undefined) data.phone            = phone;
+    if (address          !== undefined) data.address          = address;
+    if (image            !== undefined) data.image            = image;
+    if (bloodGroup       !== undefined) data.bloodGroup       = bloodGroup;
+    if (emergencyContact !== undefined) data.emergencyContact = emergencyContact;
+    if (emergencyPhone   !== undefined) data.emergencyPhone   = emergencyPhone;
+    if (occupation       !== undefined) data.occupation       = occupation;
+    if (dob              !== undefined) data.dob              = dobDate;
+
+    const updated = await prisma.user.update({
       where: { id: decoded.id },
-      data: {
-        name: body.name,
-        phone: body.phone,
-        address: body.address,
-        image: body.image, // ✅ Base64 Image string እዚህ ጋር ይገባል
-        bloodGroup: body.bloodGroup,
-        emergencyContact: body.emergencyContact,
-        emergencyPhone: body.emergencyPhone,
-        occupation: body.occupation,
-        dob: body.dob
-      }
+      data,
     });
 
-    return NextResponse.json(updatedUser);
-  } catch (error) {
-    console.error("UPDATE_ERROR:", error);
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      user: {
+        ...updated,
+        dob: updated.dob ? updated.dob.toISOString().split("T")[0] : null,
+      },
+    });
+  } catch (err) {
+    console.error("PUT_PROFILE:", err);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

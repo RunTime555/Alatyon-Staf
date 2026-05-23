@@ -1,35 +1,45 @@
-import { NextResponse } from 'next/server';
+// middleware.js — project ROOT (next to package.json)
+// ⚠️  Do NOT import verifyToken here — jsonwebtoken doesn't work on Edge runtime.
+//     We just check if the cookie EXISTS here; full verification happens in each API route.
 
-export function middleware(request) {
-  const token = request.cookies.get('token')?.value;
-  const { pathname } = request.nextUrl;
+import { NextResponse } from "next/server";
 
-  // 1. እነዚህ ገጾች ጥበቃ አያስፈልጋቸውም (ነጻ ናቸው)
-  // ሎጊን ገጽ ላይ ከሆንን ወይም የባክኢንድ API ከሆነ ዝም ይበለው
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/api/auth",
+];
+
+export function middleware(req) {
+  const { pathname } = req.nextUrl;
+
+  // Always allow public paths, static files, and API routes
   if (
-    pathname === '/' || 
-    pathname.startsWith('/admin/login') || 
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/_next') ||
-    pathname === '/favicon.ico'
+    PUBLIC_PATHS.some(p => pathname.startsWith(p)) ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/api/")
   ) {
     return NextResponse.next();
   }
 
-  // 2. ቶከን ከሌለ እና ጥበቃ የሚፈልግ ገጽ ከሆነ ወደ ሎጊን ይመልሰው
-  const isProtectedRoute = pathname.startsWith('/dashboard') || 
-                           pathname.startsWith('/admin');
+  // Check if token cookie exists
+  const token = req.cookies.get("token")?.value;
 
-  if (isProtectedRoute && !token) {
-    // ታካሚ ከሆነ ወደ ዋናው ገጽ (/)፣ አድሚን ከሆነ ወደ /admin/login ይላከው
-    const loginUrl = pathname.startsWith('/admin') ? '/admin/login' : '/';
-    return NextResponse.redirect(new URL(loginUrl, request.url));
+  if (!token) {
+    // Not logged in — redirect to login
+    const loginUrl = new URL("/login", req.url);
+    return NextResponse.redirect(loginUrl);
   }
 
+  // Token exists — allow through
+  // (each API route does full JWT verification via verifyToken)
   return NextResponse.next();
 }
 
-// ሚድልዌሩ በየትኞቹ መንገዶች ላይ እንዲሰራ (Config)
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*'],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|api/).*)",
+  ],
 };

@@ -11,33 +11,66 @@ import { Button } from "@/components/ui/button";
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
+// ✅ Field defined OUTSIDE component — fixes the one-letter typing bug
+function Field({ label, field, type = "text", readOnly = false, value, onChange, isEditing }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wide">{label}</Label>
+      {isEditing && !readOnly ? (
+        <Input
+          type={type}
+          value={value ?? ""}
+          onChange={e => onChange(field, e.target.value)}
+          className="h-11 rounded-xl bg-[#f0f6ff] border-blue-100 font-semibold text-slate-700 focus-visible:ring-blue-300"
+        />
+      ) : (
+        <p className={`text-sm font-semibold ${readOnly ? "text-slate-400" : "text-slate-700"}`}>
+          {value || "Not specified"}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
+  const [error, setError]         = useState("");
   const fileInputRef = useRef(null);
 
-  const [profile, setProfile] = useState({
+  const [profile, setProfile]   = useState({
     name: "", email: "", phone: "", address: "",
     mrn: "", image: null, bloodGroup: "",
     emergencyContact: "", emergencyPhone: "",
     occupation: "", dob: ""
   });
-
-  // Keep a copy to cancel edits
   const [original, setOriginal] = useState(null);
 
   useEffect(() => {
     fetch("/api/profile")
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) { setProfile(p => ({ ...p, ...d })); setOriginal({ ...d }); } })
+      .then(d => {
+        if (d) {
+          // Normalize dob to YYYY-MM-DD for date input
+          if (d.dob) d.dob = d.dob.split("T")[0];
+          setProfile(p => ({ ...p, ...d }));
+          setOriginal({ ...d });
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
+  // Single handler for all fields — stable reference, no re-render loop
+  const handleChange = (field, value) => {
+    setProfile(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
+    setError("");
     try {
       const res = await fetch("/api/profile", {
         method:  "PUT",
@@ -50,18 +83,20 @@ export default function ProfilePage() {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       } else {
-        alert("Failed to update profile.");
+        const d = await res.json();
+        setError(d.error || "Failed to update profile.");
       }
     } catch {
-      alert("Error saving profile.");
+      setError("Network error. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    if (original) setProfile(p => ({ ...p, ...original }));
+    if (original) setProfile({ ...original });
     setIsEditing(false);
+    setError("");
   };
 
   const handleImageChange = (e) => {
@@ -73,45 +108,31 @@ export default function ProfilePage() {
     reader.readAsDataURL(file);
   };
 
-  const Field = ({ label, field, type = "text", readOnly = false }) => (
-    <div className="space-y-1.5">
-      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wide">{label}</Label>
-      {isEditing && !readOnly ? (
-        <Input
-          type={type}
-          value={profile[field] ?? ""}
-          onChange={e => setProfile(p => ({ ...p, [field]: e.target.value }))}
-          className="h-11 rounded-xl bg-[#f0f6ff] border-blue-100 font-semibold text-slate-700 focus-visible:ring-blue-300"
-        />
-      ) : (
-        <p className={`text-sm font-semibold ${readOnly ? "text-slate-400" : "text-slate-700"}`}>
-          {profile[field] || "Not specified"}
-        </p>
-      )}
-    </div>
-  );
-
   if (loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <Loader2 className="animate-spin text-blue-600" size={36} />
     </div>
   );
 
-  const initials = profile.name
-    ? profile.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
-    : "PT";
+  // Shared props passed down to every Field
+  const fieldProps = { isEditing, onChange: handleChange };
 
   return (
     <div className="space-y-5 pb-10">
 
-      {/* Saved toast */}
+      {/* Toast */}
       {saved && (
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-4 py-3 rounded-2xl">
           <CheckCircle2 size={15} /> Profile updated successfully.
         </div>
       )}
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-4 py-3 rounded-2xl">
+          <X size={15} /> {error}
+        </div>
+      )}
 
-      {/* ── Hero card ── */}
+      {/* Hero card */}
       <div className="bg-white rounded-2xl border border-blue-50 shadow-sm overflow-hidden">
         <div className="h-28 sm:h-36 bg-gradient-to-r from-[#003a66] to-blue-500" />
         <div className="px-5 sm:px-8 pb-6 flex flex-col sm:flex-row sm:items-end gap-5 -mt-14 sm:-mt-16 relative z-10">
@@ -127,10 +148,8 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute -bottom-2 -right-2 w-9 h-9 bg-[#003a66] hover:bg-blue-600 rounded-xl flex items-center justify-center text-white border-2 border-white shadow-md transition-all"
-            >
+            <button onClick={() => fileInputRef.current?.click()}
+              className="absolute -bottom-2 -right-2 w-9 h-9 bg-[#003a66] hover:bg-blue-600 rounded-xl flex items-center justify-center text-white border-2 border-white shadow-md transition-all">
               <Camera size={15} />
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
@@ -149,7 +168,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Edit / Save actions */}
+          {/* Actions */}
           <div className="flex gap-2 shrink-0">
             {isEditing ? (
               <>
@@ -173,10 +192,8 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ── Info grid ── */}
+      {/* Info grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-        {/* Left — identity + contact */}
         <div className="lg:col-span-2 space-y-5">
 
           {/* Identity */}
@@ -188,14 +205,16 @@ export default function ProfilePage() {
               <p className="text-xs font-black uppercase text-slate-500 tracking-widest">Identity & Health</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Field label="Full Name"   field="name" />
+              <Field label="Full Name" field="name" value={profile.name} {...fieldProps} />
+
+              {/* Blood group — custom select */}
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Blood Group</Label>
                 {isEditing ? (
                   <select
                     className="w-full h-11 rounded-xl bg-[#f0f6ff] border border-blue-100 px-3 text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-300"
-                    value={profile.bloodGroup}
-                    onChange={e => setProfile(p => ({ ...p, bloodGroup: e.target.value }))}
+                    value={profile.bloodGroup ?? ""}
+                    onChange={e => handleChange("bloodGroup", e.target.value)}
                   >
                     <option value="">Select type</option>
                     {BLOOD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -204,8 +223,9 @@ export default function ProfilePage() {
                   <p className="text-sm font-bold text-red-600">{profile.bloodGroup || "Not Specified"}</p>
                 )}
               </div>
-              <Field label="Occupation"    field="occupation" />
-              <Field label="Date of Birth" field="dob" type="date" />
+
+              <Field label="Occupation"    field="occupation" value={profile.occupation} {...fieldProps} />
+              <Field label="Date of Birth" field="dob"        value={profile.dob}        type="date" {...fieldProps} />
             </div>
           </div>
 
@@ -218,16 +238,16 @@ export default function ProfilePage() {
               <p className="text-xs font-black uppercase text-slate-500 tracking-widest">Contact Info</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Field label="Email"  field="email" type="email" readOnly />
-              <Field label="Phone"  field="phone" type="tel" />
+              <Field label="Email"   field="email"   value={profile.email}   type="email" readOnly {...fieldProps} />
+              <Field label="Phone"   field="phone"   value={profile.phone}   type="tel"   {...fieldProps} />
               <div className="sm:col-span-2">
-                <Field label="Address" field="address" />
+                <Field label="Address" field="address" value={profile.address} {...fieldProps} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right — emergency + notice */}
+        {/* Right */}
         <div className="space-y-5">
           <div className="bg-red-50 border border-red-100 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
@@ -239,7 +259,7 @@ export default function ProfilePage() {
                 <Label className="text-[10px] font-black text-red-400 uppercase tracking-wide">Contact Name</Label>
                 {isEditing ? (
                   <Input value={profile.emergencyContact ?? ""}
-                    onChange={e => setProfile(p => ({ ...p, emergencyContact: e.target.value }))}
+                    onChange={e => handleChange("emergencyContact", e.target.value)}
                     className="h-11 rounded-xl bg-white border-red-100 font-semibold focus-visible:ring-red-300" />
                 ) : (
                   <p className="text-sm font-bold text-slate-700">{profile.emergencyContact || "Not Set"}</p>
@@ -249,7 +269,7 @@ export default function ProfilePage() {
                 <Label className="text-[10px] font-black text-red-400 uppercase tracking-wide">Emergency Phone</Label>
                 {isEditing ? (
                   <Input value={profile.emergencyPhone ?? ""}
-                    onChange={e => setProfile(p => ({ ...p, emergencyPhone: e.target.value }))}
+                    onChange={e => handleChange("emergencyPhone", e.target.value)}
                     className="h-11 rounded-xl bg-white border-red-100 font-semibold focus-visible:ring-red-300" />
                 ) : (
                   <p className="text-sm font-bold text-slate-700">{profile.emergencyPhone || "Not Set"}</p>
