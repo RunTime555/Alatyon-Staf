@@ -1,70 +1,63 @@
+// app/api/lab/upload/route.js
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { verifyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import nodemailer from "nodemailer";
 
 export async function POST(req) {
   try {
-    // 1. የላክነውን የዳታ Structure መቀበል (patientMrn እና results array)
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+
+    if (!token) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded?.id) {
+      return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
+    }
+
     const { patientMrn, results } = await req.json();
 
-    // 2. ታካሚውን በ MRN ፈልገን ማግኘት
-    const patient = await prisma.user.findUnique({
-      where: { mrn: patientMrn },
+    if (!patientMrn || !results?.length) {
+      return NextResponse.json(
+        { success: false, error: "patientMrn and results are required" },
+        { status: 400 }
+      );
+    }
+
+    // Find patient by MRN
+    const patient = await prisma.user.findFirst({
+      where: { mrn: patientMrn, role: "Patient" },
+      select: { id: true, name: true },
     });
 
     if (!patient) {
-      return NextResponse.json({ error: "ታካሚው አልተገኘም" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Patient not found with MRN: " + patientMrn },
+        { status: 404 }
+      );
     }
 
-    // 3. ብዙ ምርመራዎችን በአንድ ጊዜ በዳታቤዝ ውስጥ መመዝገብ
-    // Promise.all ሁሉንም ምርመራዎች ጎን ለጎን ፈጥኖ እንዲመዘግብ ይረዳናል
-    const createdResults = await Promise.all(
-  results.map((test) =>
-    prisma.labResult.create({
-      data: {
-        testName: test.testName,
-        testValue: String(test.resultValue), // String መሆኑን እናረጋግጥ
-        status: "PENDING_DOCTOR", // አሁን ከ Schemaው ጋር ይመሳሰላል
+    // Create all lab results
+    const created = await prisma.labResult.createMany({
+      data: results.map(r => ({
+        testName:  r.testName,
+        testValue: r.resultValue ?? r.testValue ?? "",
+        unit:      r.unit ?? null,
+        status:    "PENDING_DOCTOR",
         patientId: patient.id,
-      },
-    })
-  )
-);
+      })),
+    });
 
-    // 4. የኢሜይል ማሳወቂያ (ለታካሚው አንድ ጊዜ ብቻ መላክ ይበቃል)
-    try {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
-
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: patient.email,
-        subject: "Lab Result Ready - Alatyon Hospital",
-        html: `
-          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h2 style="color: #2563eb;">ሰላም ${patient.name}</h2>
-            <p>የላብራቶሪ ምርመራ ውጤቶችሽ ተሞልተው ዶክተር እንዲያያቸው ተልከዋል።</p>
-            <p><strong>የምርመራ ብዛት:</strong> ${results.length}</p>
-            <hr />
-            <p style="font-size: 12px; color: #666;">Alatyon Patient Lab System</p>
-          </div>
-        `,
-      };
-
-      await transporter.sendMail(mailOptions);
-    } catch (emailError) {
-      console.error("Email Error (Ignored):", emailError);
-      // ኢሜይል ባይላክ እንኳ ዳታው ስለተመዘገበ ለተጠቃሚው Error አናሳይም
-    }
-
-    return NextResponse.json({ success: true, data: createdResults });
-  } catch (error) {
-    console.error("UPLOAD_ERROR:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      message: `${created.count} result(s) uploaded for ${patient.name}`,
+      count:   created.count,
+    });
+  } catch (err) {
+    console.error("POST_LAB_UPLOAD:", err);
+    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
 }
