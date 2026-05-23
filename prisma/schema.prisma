@@ -7,17 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-// User Model
 model User {
   id               String      @id @default(cuid())
-  mrn              String?     @unique 
+  mrn              String?     @unique
   name             String
   email            String      @unique
   password         String
-  role             String      @default("Patient") // Patient, Admin, LabTechnician
-  
-  // --- አዲስ የተጨመሩ የፕሮፋይል ክፍሎች ---
+  role             String      @default("Patient")
+
   phone            String?
   address          String?
   image            String?     @db.Text
@@ -26,26 +23,28 @@ model User {
   emergencyPhone   String?
   occupation       String?
   dob              String?
-  // ----------------------------------
 
   createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt 
+  updatedAt        DateTime    @updatedAt
 
-  // Relationship
   labResults       LabResult[] @relation("PatientToResults")
 }
+
 model LabResult {
-  id             String   @id @default(cuid())
-  testName       String   
-  category       String   @default("General")
-  testValue      String?  
-  unit           String?  
-  status         String   @default("PENDING_DOCTOR") // <-- እዚህ ጋር ቀይሪው
-  interpretation String?  @db.Text 
-  
+  id             String    @id @default(cuid())
+  testName       String
+  category       String    @default("General")
+  testValue      String?
+  unit           String?
+  status         String    @default("PENDING_DOCTOR")
+  interpretation String?   @db.Text
+  doctorComment  String?   @db.Text
+  reviewedAt     DateTime?
+  severity       String?
+
   patientId      String
-  patient        User     @relation("PatientToResults", fields: [patientId], references: [id], onDelete: Cascade)
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt 
+  patient        User      @relation("PatientToResults", fields: [patientId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }

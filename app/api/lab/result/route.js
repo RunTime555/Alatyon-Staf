@@ -16,14 +16,14 @@ export async function GET(req, { params }) {
     const { id } = await params;
 
     const result = await prisma.labResult.findUnique({
-      where: { id },
+      where: { id }, // ✅ id only — no patientId filter
       include: {
         patient: {
           select: {
             id:   true,
             name: true,
             mrn:  true,
-            labResults: {
+            labResults: {           // ✅ correct relation name from schema
               orderBy: { createdAt: "desc" },
               select: {
                 id:        true,

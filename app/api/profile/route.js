@@ -1,4 +1,3 @@
-// app/api/profile/route.js
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth";
@@ -26,10 +25,10 @@ export async function GET() {
 
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    // ✅ Serialize dob to plain string for the frontend date input
+    // ✅ dob ቀድሞውኑ String ስለሆነ እንዳለ እንልከዋለን
     return NextResponse.json({
       ...user,
-      dob: user.dob ? user.dob.toISOString().split("T")[0] : null,
+      dob: user.dob || null,
     });
   } catch (err) {
     console.error("GET_PROFILE:", err);
@@ -53,10 +52,14 @@ export async function PUT(req) {
       emergencyPhone, occupation, dob,
     } = body;
 
-    // ✅ Convert dob string → DateTime (Prisma requires DateTime, not plain string)
-    const dobDate = dob ? new Date(dob) : null;
+    // ✅ DOBን ወደ String (YYYY-MM-DD) መቀየር
+    let dobString = null;
+    if (dob) {
+      const dateObj = new Date(dob);
+      dobString = dateObj.toISOString().split("T")[0];
+    }
 
-    // ✅ Only update fields that were actually sent (avoid overwriting with undefined)
+    // ✅ መረጃዎችን ማዘጋጀት
     const data = {};
     if (name             !== undefined) data.name             = name;
     if (phone            !== undefined) data.phone            = phone;
@@ -66,7 +69,7 @@ export async function PUT(req) {
     if (emergencyContact !== undefined) data.emergencyContact = emergencyContact;
     if (emergencyPhone   !== undefined) data.emergencyPhone   = emergencyPhone;
     if (occupation       !== undefined) data.occupation       = occupation;
-    if (dob              !== undefined) data.dob              = dobDate;
+    if (dob              !== undefined) data.dob              = dobString; // አሁን String ነው
 
     const updated = await prisma.user.update({
       where: { id: decoded.id },
@@ -75,10 +78,7 @@ export async function PUT(req) {
 
     return NextResponse.json({
       success: true,
-      user: {
-        ...updated,
-        dob: updated.dob ? updated.dob.toISOString().split("T")[0] : null,
-      },
+      user: updated,
     });
   } catch (err) {
     console.error("PUT_PROFILE:", err);

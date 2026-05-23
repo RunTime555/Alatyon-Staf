@@ -8,15 +8,10 @@ export async function GET() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const decoded = verifyToken(token);
-    if (!decoded?.id) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
+    if (!decoded?.id) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
     const patient = await prisma.user.findUnique({
       where: { id: decoded.id },
@@ -24,26 +19,23 @@ export async function GET() {
         id:   true,
         name: true,
         mrn:  true,
-        labResults: {
+        labResults: {             // ✅ correct relation name
           orderBy: { createdAt: "desc" },
           select: {
             id:             true,
             testName:       true,
-            testValue:      true,  // ✅ only testValue — no resultValue
+            testValue:      true,
             unit:           true,
             status:         true,
             interpretation: true,
-            doctorComment:  true,
+            category:       true,
             createdAt:      true,
-            reviewedAt:     true,
           },
         },
       },
     });
 
-    if (!patient) {
-      return NextResponse.json({ error: "Patient not found" }, { status: 404 });
-    }
+    if (!patient) return NextResponse.json({ error: "Patient not found" }, { status: 404 });
 
     return NextResponse.json({
       name:    patient.name,
