@@ -14,19 +14,16 @@ model User {
   email            String      @unique
   password         String
   role             String      @default("Patient")
-
   phone            String?
   address          String?
-  image            String?     @db.Text
+  image            String?
   bloodGroup       String?
   emergencyContact String?
   emergencyPhone   String?
   occupation       String?
   dob              String?
-
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
-
   labResults       LabResult[] @relation("PatientToResults")
 }
 
@@ -37,14 +34,12 @@ model LabResult {
   testValue      String?
   unit           String?
   status         String    @default("PENDING_DOCTOR")
-  interpretation String?   @db.Text
-  doctorComment  String?   @db.Text
+  interpretation String?
+  doctorComment  String?
   reviewedAt     DateTime?
   severity       String?
-
   patientId      String
-  patient        User      @relation("PatientToResults", fields: [patientId], references: [id], onDelete: Cascade)
-
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  patient        User      @relation("PatientToResults", fields: [patientId], references: [id], onDelete: Cascade)
 }

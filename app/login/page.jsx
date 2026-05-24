@@ -2,133 +2,119 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Building2, Lock } from "lucide-react";
+import { Lock, Mail, ShieldCheck, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
-    setError("");
     setIsLoading(true);
+    setError("");
 
     try {
-      const res = await fetch('/api/auth/patient-login', {
+      const res = await fetch('/api/auth/staff-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ identifier: email, password }),
       });
 
       const data = await res.json();
 
       if (res.ok && data.success) {
-        router.push("/dashboard");
+        // በኢሜይል አድራሻው ለይተን ዳይሬክት እናደርጋለን
+        if (email === 'doctor@alatyon.com') {
+          router.push("/doctor");
+        } else if (email === 'lab@alatyon.com') {
+          router.push("/lab/upload");
+        } else {
+          // ሌላ አድሚን ከሆነ
+          router.push("/admin/dashboard");
+        }
       } else {
-        setError(data.error || "መግባት አልተቻለም። እባክዎ መረጃዎን ያረጋግጡ።");
-        setIsLoading(false);
+        setError(data.error || "የመለያ መረጃው ስህተት ነው");
       }
     } catch (err) {
-      setError("የሲስተም ችግር አጋጥሟል።");
+      setError("የሰርቨር ግንኙነት ተቋርጧል። እባክዎ ድጋሚ ይሞክሩ።");
+    } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-100 via-background to-cyan-50/30 font-sans">
-      <main className="flex-1 flex items-center justify-center px-4 py-12 relative z-10">
-        <div className="w-full max-w-md">
-          {/* Header Section */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-black text-[#004a7c] mb-2 italic tracking-tight">Alatyon Hospital</h1>
-            <p className="text-slate-500 font-medium text-sm">Sign in to your professional account</p>
+    <div className="min-h-screen flex flex-col bg-[#f8fafc]">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-[420px] space-y-6">
+          
+          <div className="text-center space-y-2">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 bg-[#004a7c] rounded-[24px] flex items-center justify-center shadow-2xl shadow-blue-900/20">
+                <span className="text-white font-black text-3xl">+</span>
+              </div>
+            </div>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight mt-4">ALATYON STAFF</h1>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">Portal Access</p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              
-              {/* Error Message */}
+          <div className="bg-white p-10 rounded-[40px] shadow-2xl shadow-slate-200/60 border border-slate-100 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-emerald-500"></div>
+            
+            <form onSubmit={handleAdminLogin} className="space-y-6">
               {error && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs text-center font-bold animate-in fade-in zoom-in duration-300">
-                  {error}
+                <div className="p-4 flex items-center gap-3 text-[12px] font-bold text-red-600 bg-red-50 border border-red-100 rounded-2xl">
+                  <AlertCircle size={18} /> {error}
                 </div>
               )}
 
-              {/* Email/MRN Input */}
               <div className="space-y-2">
-                <Label htmlFor="identifier" className="text-xs font-bold text-slate-700 ml-1">Email or MRN</Label>
+                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Work Email</Label>
                 <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                  <Input
-                    id="identifier"
-                    placeholder="Enter MRN or Email"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    className="pl-10 h-12 rounded-xl border-slate-200 focus:ring-[#004a7c]/10"
-                    required
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300" />
+                  <Input 
+                    type="email" 
+                    placeholder="name@alatyon.com" 
+                    className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50" 
+                    required 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
               </div>
 
-              {/* Password Input */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between ml-1">
-                  <Label htmlFor="password" name="password" className="text-xs font-bold text-slate-700">Password</Label>
-                  <Link 
-                    href="/forgot-password" 
-                    className="text-[11px] font-black text-[#004a7c] hover:underline"
-                  >
-                    Forgot Password?
-                  </Link>
-                </div>
+                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300" />
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••" 
+                    className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50" 
+                    required 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 h-12 rounded-xl border-slate-200 focus:ring-[#004a7c]/10"
-                    required
                   />
                 </div>
               </div>
 
-              {/* Login Button */}
               <Button 
                 type="submit" 
-                className="w-full h-12 bg-[#004a7c] hover:bg-[#00365c] text-white font-bold rounded-xl shadow-lg shadow-blue-900/10 transition-all active:scale-95" 
+                className="w-full h-14 bg-[#004a7c] hover:bg-[#003a63] text-white rounded-2xl font-black shadow-xl" 
                 disabled={isLoading}
               >
-                {isLoading ? "Signing in..." : "Login to System"}
+                {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : "Sign In to Portal"}
               </Button>
-
-              {/* Footer inside Card */}
-              <div className="text-center pt-2">
-                <p className="text-xs text-slate-500 font-medium">
-                  Don't have an account?{" "}
-                  <Link href="/register" className="text-[#004a7c] font-black hover:underline">
-                    Create one
-                  </Link>
-                </p>
-              </div>
             </form>
           </div>
-
-          {/* Small Copyright outside */}
-          <p className="text-center mt-8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            © {new Date().getFullYear()} Alatyon Patient Lab System
-          </p>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
