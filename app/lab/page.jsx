@@ -3,24 +3,25 @@
 import { useState, useEffect } from "react";
 import {
   Beaker, FlaskConical, ClipboardCheck, LayoutDashboard,
-  Settings, LogOut, Menu, X, TrendingUp, Clock3,
-  CheckCircle2, AlertCircle, ChevronRight, Activity,
-  Users, Calendar
+  LogOut, Menu, X, Clock3, CheckCircle2,
+  ChevronRight, Activity, Users
 } from "lucide-react";
 import Link from "next/link";
 
 const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: "Dashboard",      href: "/lab",           active: true },
+  { icon: LayoutDashboard, label: "Dashboard",      href: "/lab",        active: true },
   { icon: FlaskConical,    label: "Upload Results", href: "/lab/upload" },
   { icon: ClipboardCheck,  label: "Recent Uploads", href: "/lab/recent" },
-
 ];
 
+// ✅ Correct status values
 const STATUS_MAP = {
-  pending:  { bg: "bg-amber-50",   text: "text-amber-600",   dot: "bg-amber-400",   label: "Pending" },
-  reviewed: { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400", label: "Reviewed" },
-  default:  { bg: "bg-blue-50",    text: "text-blue-600",    dot: "bg-blue-400",    label: "Uploaded" },
+  PENDING_DOCTOR: { bg: "bg-amber-50",   text: "text-amber-600",   dot: "bg-amber-400",   label: "Pending" },
+  COMPLETED:      { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400", label: "Reviewed" },
+  Verified:       { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400", label: "Reviewed" },
+  REJECTED:       { bg: "bg-red-50",     text: "text-red-600",     dot: "bg-red-400",     label: "Rejected" },
 };
+const getStatus = (s) => STATUS_MAP[s] ?? { bg: "bg-blue-50", text: "text-blue-600", dot: "bg-blue-400", label: "Uploaded" };
 
 function Sidebar({ open, onClose }) {
   return (
@@ -64,8 +65,8 @@ function Sidebar({ open, onClose }) {
 
 export default function LabDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [recent, setRecent] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [recent, setRecent]           = useState([]);
+  const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
     fetch("/api/lab/recent")
@@ -75,15 +76,16 @@ export default function LabDashboard() {
   }, []);
 
   const total    = recent.length;
-  const pending  = recent.filter(r => r.status === "pending").length;
-  const reviewed = recent.filter(r => r.status === "reviewed").length;
+  // ✅ Fixed status values
+  const pending  = recent.filter(r => r.status === "PENDING_DOCTOR").length;
+  const reviewed = recent.filter(r => ["COMPLETED","Verified"].includes(r.status)).length;
   const patients = new Set(recent.map(r => r.patient?.mrn)).size;
 
   const stats = [
-    { label: "Total Uploaded",   value: total,    icon: FlaskConical,  color: "text-blue-600",    bg: "bg-blue-50" },
-    { label: "Pending Review",   value: pending,  icon: Clock3,        color: "text-amber-600",   bg: "bg-amber-50" },
-    { label: "Reviewed",         value: reviewed, icon: CheckCircle2,  color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Patients Today",   value: patients, icon: Users,         color: "text-purple-600",  bg: "bg-purple-50" },
+    { label: "Total Uploaded", value: total,    icon: FlaskConical,  color: "text-blue-600",    bg: "bg-blue-50",    desc: "All results" },
+    { label: "Pending Review", value: pending,  icon: Clock3,        color: "text-amber-600",   bg: "bg-amber-50",   desc: "Waiting for doctor" },
+    { label: "Reviewed",       value: reviewed, icon: CheckCircle2,  color: "text-emerald-600", bg: "bg-emerald-50", desc: "Doctor approved" },
+    { label: "Patients",       value: patients, icon: Users,         color: "text-purple-600",  bg: "bg-purple-50",  desc: "Unique patients" },
   ];
 
   return (
@@ -91,7 +93,6 @@ export default function LabDashboard() {
       <div className="flex h-screen overflow-hidden">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Topbar */}
           <header className="bg-white border-b border-blue-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30 shrink-0">
             <button onClick={() => setSidebarOpen(true)} className="md:hidden w-9 h-9 rounded-xl bg-[#eef3fa] flex items-center justify-center text-slate-600 shrink-0">
               <Menu size={18} />
@@ -112,7 +113,7 @@ export default function LabDashboard() {
           <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-              {stats.map(({ label, value, icon: Icon, color, bg }) => (
+              {stats.map(({ label, value, icon: Icon, color, bg, desc }) => (
                 <div key={label} className="bg-white rounded-2xl border border-blue-50 p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-wide leading-tight">{label}</p>
@@ -121,20 +122,19 @@ export default function LabDashboard() {
                     </div>
                   </div>
                   <p className="text-2xl font-black text-slate-800">{loading ? "—" : value}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{desc}</p>
                 </div>
               ))}
             </div>
 
-            {/* Activity summary + Quick actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Quick actions */}
               <div className="bg-white rounded-2xl border border-blue-50 p-5 shadow-sm">
                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Quick Actions</p>
                 <div className="space-y-2">
                   {[
-                    { label: "Upload New Results", href: "/lab/upload",   icon: FlaskConical,   color: "bg-blue-50 text-blue-600" },
+                    { label: "Upload New Results",  href: "/lab/upload",  icon: FlaskConical,   color: "bg-blue-50 text-blue-600" },
                     { label: "View Recent Uploads", href: "/lab/recent",  icon: ClipboardCheck, color: "bg-emerald-50 text-emerald-600" },
-                   
                   ].map(({ label, href, icon: Icon, color }) => (
                     <Link key={label} href={href}
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#f0f6ff] transition-all group">
@@ -146,27 +146,45 @@ export default function LabDashboard() {
                     </Link>
                   ))}
                 </div>
+
+                {/* Status legend */}
+                <div className="mt-5 pt-4 border-t border-blue-50">
+                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Status Guide</p>
+                  <div className="space-y-2">
+                    {[
+                      { dot: "bg-amber-400",   label: "Pending",  desc: "Waiting for doctor" },
+                      { dot: "bg-emerald-400", label: "Reviewed", desc: "Doctor approved" },
+                      { dot: "bg-red-400",     label: "Rejected", desc: "Re-upload needed" },
+                    ].map(({ dot, label, desc }) => (
+                      <div key={label} className="flex items-start gap-2">
+                        <span className={`w-2 h-2 rounded-full ${dot} mt-1 shrink-0`} />
+                        <div>
+                          <p className="text-[10px] font-black text-slate-600">{label}</p>
+                          <p className="text-[10px] text-slate-400">{desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Recent activity */}
               <div className="lg:col-span-2 bg-white rounded-2xl border border-blue-50 p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Recent Activity</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Recent Uploads</p>
                   <Link href="/lab/recent" className="text-[10px] font-bold text-blue-500 hover:text-blue-700 uppercase tracking-wide">View all</Link>
                 </div>
                 {loading ? (
-                  <div className="space-y-3">
-                    {[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}
-                  </div>
+                  <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}</div>
                 ) : recent.length === 0 ? (
                   <div className="text-center py-8">
                     <Activity size={24} className="text-blue-100 mx-auto mb-2" />
-                    <p className="text-xs text-slate-400 font-semibold">No activity yet</p>
+                    <p className="text-xs text-slate-400 font-semibold">No uploads yet</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {recent.slice(0, 5).map((item, i) => {
-                      const st = STATUS_MAP[item.status] ?? STATUS_MAP.default;
+                    {recent.slice(0, 6).map((item, i) => {
+                      const st = getStatus(item.status);
                       return (
                         <div key={i} className="flex items-center gap-3 p-3 bg-[#f7faff] rounded-xl border border-blue-50">
                           <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
@@ -174,11 +192,20 @@ export default function LabDashboard() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-black text-slate-700 truncate">{item.testName}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{item.patient?.name} · {item.patient?.mrn}</p>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              {item.patient?.name} · <span className="font-mono">{item.patient?.mrn}</span>
+                            </p>
                           </div>
-                          <span className={`flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${st.bg} ${st.text}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />{st.label}
-                          </span>
+                          <div className="text-right shrink-0">
+                            <span className={`flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />{st.label}
+                            </span>
+                            {item.testValue && (
+                              <p className="text-[10px] font-black text-[#003a66] mt-1">
+                                {item.testValue} {item.unit && <span className="font-normal text-slate-400">{item.unit}</span>}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       );
                     })}

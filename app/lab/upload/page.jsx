@@ -4,8 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Loader2, Trash2, Beaker, Activity, Search,
   Menu, X, PlusCircle, User2, AlertCircle, FlaskConical,
-  ClipboardCheck, LayoutDashboard, LogOut, Settings,
-  CheckCircle2, Clock3
+  ClipboardCheck, LayoutDashboard, LogOut, CheckCircle2, Clock3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,28 +21,39 @@ const NAV_ITEMS = [
 ];
 
 const TEST_TYPES = [
-  "Complete Blood Count (CBC)", "Blood Glucose", "Lipid Profile",
-  "Liver Function (LFT)", "Renal Function (RFT)", "Urinalysis",
-  "Thyroid Function (TSH)", "Malaria Parasite (MP)", "H. Pylori", "Other"
+  { name: "Complete Blood Count (CBC)", unit: "cells/μL" },
+  { name: "Blood Glucose",              unit: "mg/dL" },
+  { name: "Lipid Profile",              unit: "mg/dL" },
+  { name: "Liver Function (LFT)",       unit: "U/L" },
+  { name: "Renal Function (RFT)",       unit: "mg/dL" },
+  { name: "Urinalysis",                 unit: "" },
+  { name: "Thyroid Function (TSH)",     unit: "mIU/L" },
+  { name: "Malaria Parasite (MP)",      unit: "" },
+  { name: "H. Pylori",                  unit: "" },
+  { name: "Other",                      unit: "" },
 ];
 
+// ✅ Fixed status values to match Prisma schema
 const STATUS_MAP = {
-  pending:  { bg: "bg-amber-50",   text: "text-amber-600",   dot: "bg-amber-400",   label: "Pending" },
-  reviewed: { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400", label: "Reviewed" },
-  default:  { bg: "bg-blue-50",    text: "text-blue-600",    dot: "bg-blue-400",    label: "Uploaded" },
+  PENDING_DOCTOR: { bg: "bg-amber-50",   text: "text-amber-600",   dot: "bg-amber-400",   label: "Pending" },
+  COMPLETED:      { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400", label: "Reviewed" },
+  Verified:       { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400", label: "Reviewed" },
+  REJECTED:       { bg: "bg-red-50",     text: "text-red-600",     dot: "bg-red-400",     label: "Rejected" },
 };
+const getStatus = (s) => STATUS_MAP[s] ?? { bg: "bg-blue-50", text: "text-blue-600", dot: "bg-blue-400", label: "Uploaded" };
 
 export default function LabUploadPage() {
-  const [loading, setLoading]             = useState(false);
-  const [sidebarOpen, setSidebarOpen]     = useState(false);
-  const [recentOpen, setRecentOpen]       = useState(false);
-  const [patientMrn, setPatientMrn]       = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [recentOpen, setRecentOpen]   = useState(false);
+  const [patientMrn, setPatientMrn]   = useState("");
   const [recentResults, setRecentResults] = useState([]);
-  const [searchQuery, setSearchQuery]     = useState("");
-  const [submitted, setSubmitted]         = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [submitted, setSubmitted]     = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const [tests, setTests] = useState([
-    { id: Date.now(), testName: "", customTestName: "", isOther: false, resultValue: "" }
+    { id: Date.now(), testName: "", customTestName: "", isOther: false, resultValue: "", unit: "" }
   ]);
 
   const fetchRecentResults = async () => {
@@ -56,7 +66,6 @@ export default function LabUploadPage() {
 
   useEffect(() => { fetchRecentResults(); }, []);
 
-  // Close sidebar on resize to desktop
   useEffect(() => {
     const onResize = () => { if (window.innerWidth >= 768) setSidebarOpen(false); };
     window.addEventListener("resize", onResize);
@@ -79,7 +88,7 @@ export default function LabUploadPage() {
   }, [recentResults, searchQuery]);
 
   const addTestField = () =>
-    setTests(prev => [...prev, { id: Date.now(), testName: "", customTestName: "", isOther: false, resultValue: "" }]);
+    setTests(prev => [...prev, { id: Date.now(), testName: "", customTestName: "", isOther: false, resultValue: "", unit: "" }]);
 
   const removeTestField = (id) => {
     if (tests.length > 1) setTests(prev => prev.filter(t => t.id !== id));
@@ -88,7 +97,10 @@ export default function LabUploadPage() {
   const updateTest = (id, field, value) => {
     setTests(prev => prev.map(t => {
       if (t.id !== id) return t;
-      if (field === "testName") return { ...t, testName: value, isOther: value === "Other" };
+      if (field === "testName") {
+        const found = TEST_TYPES.find(tt => tt.name === value);
+        return { ...t, testName: value, isOther: value === "Other", unit: found?.unit ?? t.unit };
+      }
       return { ...t, [field]: value };
     }));
   };
@@ -96,31 +108,38 @@ export default function LabUploadPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setSubmitError("");
+
     const finalResults = tests.map(t => ({
       testName:    t.isOther ? t.customTestName : t.testName,
       resultValue: t.resultValue,
+      unit:        t.unit || null,   // ✅ include unit
     }));
+
     try {
       const res = await fetch("/api/lab/upload", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ patientMrn, results: finalResults }),
       });
-      if (res.ok) {
+      const json = await res.json();
+      if (res.ok && json.success) {
         setPatientMrn("");
-        setTests([{ id: Date.now(), testName: "", customTestName: "", isOther: false, resultValue: "" }]);
+        setTests([{ id: Date.now(), testName: "", customTestName: "", isOther: false, resultValue: "", unit: "" }]);
         await fetchRecentResults();
         setSubmitted(true);
         setTimeout(() => setSubmitted(false), 3000);
+      } else {
+        setSubmitError(json.error || "Upload failed. Please try again.");
       }
     } catch (err) {
+      setSubmitError("Network error. Please try again.");
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  /* ─── Shared recent-submissions list ─── */
   const RecentList = () => (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
       {groupedResults.length === 0 ? (
@@ -130,25 +149,25 @@ export default function LabUploadPage() {
         </div>
       ) : (
         groupedResults.map(group => {
-          const st = STATUS_MAP[group.tests[0]?.status] ?? STATUS_MAP.default;
+          const st = getStatus(group.tests[0]?.status);
           return (
-            <div key={group.mrn}
-              className="bg-[#f7faff] rounded-xl border border-blue-50 p-3 hover:border-blue-200 transition-all">
+            <div key={group.mrn} className="bg-[#f7faff] rounded-xl border border-blue-50 p-3 hover:border-blue-200 transition-all">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-xs font-black text-slate-700">{group.name}</p>
                   <p className="text-[10px] text-slate-400 font-mono">{group.mrn}</p>
                 </div>
                 <span className={`flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-                  {st.label}
+                  <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />{st.label}
                 </span>
               </div>
               <div className="space-y-1">
                 {group.tests.slice(0, 3).map((t, i) => (
                   <div key={i} className="flex items-center justify-between bg-white rounded-lg px-2 py-1 border border-blue-50">
                     <span className="text-[10px] text-slate-500 font-medium truncate max-w-[55%]">{t.testName}</span>
-                    <span className="text-[10px] font-black text-blue-600">{t.resultValue}</span>
+                    <span className="text-[10px] font-black text-blue-600">
+                      {t.testValue} {t.unit && <span className="font-normal text-slate-400">{t.unit}</span>}
+                    </span>
                   </div>
                 ))}
                 {group.tests.length > 3 && (
@@ -164,27 +183,14 @@ export default function LabUploadPage() {
 
   return (
     <div className="min-h-screen bg-[#eef3fa] font-sans">
-
-      {/* ── Mobile nav sidebar overlay ── */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* ── Mobile recent-results drawer overlay ── */}
-      {recentOpen && (
-        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setRecentOpen(false)} />
-      )}
+      {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
+      {recentOpen  && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setRecentOpen(false)} />}
 
       <div className="flex h-screen overflow-hidden">
 
-        {/* ══════════════ LEFT SIDEBAR (nav) ══════════════ */}
-        <aside className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-[#003a66] flex flex-col
-          transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          md:relative md:translate-x-0 md:shrink-0
-        `}>
-          {/* Logo */}
+        {/* Sidebar */}
+        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#003a66] flex flex-col transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 md:shrink-0`}>
           <div className="px-5 py-5 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-blue-500 rounded-xl flex items-center justify-center shrink-0">
@@ -195,35 +201,29 @@ export default function LabUploadPage() {
                 <p className="text-blue-300 text-[10px] font-bold uppercase tracking-widest mt-0.5">Lab System</p>
               </div>
             </div>
-            {/* Close button visible only on mobile */}
-            <button onClick={() => setSidebarOpen(false)}
-              className="md:hidden text-white/50 hover:text-white p-1">
+            <button onClick={() => setSidebarOpen(false)} className="md:hidden text-white/50 hover:text-white p-1">
               <X size={18} />
             </button>
           </div>
 
-          {/* Nav links */}
           <nav className="flex-1 py-5 px-3 space-y-1">
             {NAV_ITEMS.map(({ icon: Icon, label, href, active }) => (
               <a key={label} href={href}
                 className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all
-                  ${active
-                    ? "bg-blue-500 text-white shadow-lg shadow-blue-900/30"
-                    : "text-white/50 hover:bg-white/10 hover:text-white"}`}>
-                <Icon size={17} className="shrink-0" />
-                {label}
+                  ${active ? "bg-blue-500 text-white shadow-lg shadow-blue-900/30" : "text-white/50 hover:bg-white/10 hover:text-white"}`}>
+                <Icon size={17} className="shrink-0" />{label}
               </a>
             ))}
           </nav>
 
-          {/* Stats */}
+          {/* ✅ Fixed status counts */}
           <div className="mx-3 mb-4 bg-white/5 rounded-2xl p-4 border border-white/10">
             <p className="text-[10px] font-black uppercase text-blue-300 tracking-widest mb-3">Today's Activity</p>
             <div className="space-y-2">
               {[
-                { icon: FlaskConical, label: "Uploaded", value: recentResults.length, color: "text-blue-300" },
-                { icon: Clock3,       label: "Pending",  value: recentResults.filter(r => r.status === "pending").length,  color: "text-amber-300" },
-                { icon: CheckCircle2, label: "Reviewed", value: recentResults.filter(r => r.status === "reviewed").length, color: "text-emerald-300" },
+                { icon: FlaskConical, label: "Uploaded", value: recentResults.length,                                                              color: "text-blue-300" },
+                { icon: Clock3,       label: "Pending",  value: recentResults.filter(r => r.status === "PENDING_DOCTOR").length,                   color: "text-amber-300" },
+                { icon: CheckCircle2, label: "Reviewed", value: recentResults.filter(r => ["COMPLETED","Verified"].includes(r.status)).length,     color: "text-emerald-300" },
               ].map(({ icon: Icon, label, value, color }) => (
                 <div key={label} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -236,7 +236,6 @@ export default function LabUploadPage() {
             </div>
           </div>
 
-          {/* User footer */}
           <div className="px-4 py-4 border-t border-white/10 flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-black shrink-0">LT</div>
             <div className="flex-1 min-w-0">
@@ -247,46 +246,40 @@ export default function LabUploadPage() {
           </div>
         </aside>
 
-        {/* ══════════════ MAIN CONTENT ══════════════ */}
+        {/* Main */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-          {/* ── Topbar ── */}
           <header className="bg-white border-b border-blue-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30 shrink-0">
-            {/* Hamburger — opens nav sidebar */}
             <button onClick={() => setSidebarOpen(true)}
               className="md:hidden w-9 h-9 rounded-xl bg-[#eef3fa] flex items-center justify-center text-slate-600 shrink-0">
               <Menu size={18} />
             </button>
-
             <div className="min-w-0 flex-1">
               <h1 className="text-sm font-black text-slate-800 leading-none truncate">Upload Lab Results</h1>
               <p className="text-[11px] text-slate-400 font-medium mt-0.5 hidden sm:block">Enter patient MRN and test data below</p>
             </div>
-
-            {/* Success toast */}
             {submitted && (
               <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-emerald-200 shrink-0">
                 <CheckCircle2 size={12} /> Synced!
               </div>
             )}
-
-            {/* Recent results trigger — mobile/tablet only */}
             <button onClick={() => setRecentOpen(true)}
               className="lg:hidden w-9 h-9 rounded-xl bg-[#eef3fa] flex items-center justify-center text-blue-600 shrink-0 relative">
               <Activity size={17} />
-              {recentResults.length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" />
-              )}
+              {recentResults.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" />}
             </button>
           </header>
 
-          {/* ── Scrollable body ── */}
           <div className="flex flex-1 overflow-hidden">
-
-            {/* Form scroll area */}
             <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
               <div className="max-w-2xl mx-auto w-full">
                 <form onSubmit={handleSubmit} className="space-y-5">
+
+                  {/* Error */}
+                  {submitError && (
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-4 py-3 rounded-xl">
+                      <AlertCircle size={14} /> {submitError}
+                    </div>
+                  )}
 
                   {/* Patient MRN */}
                   <div className="bg-white rounded-2xl border border-blue-100 p-5 shadow-sm">
@@ -309,8 +302,6 @@ export default function LabUploadPage() {
                   <div className="space-y-4">
                     {tests.map((test, index) => (
                       <div key={test.id} className="bg-white rounded-2xl border border-blue-100 p-5 shadow-sm">
-
-                        {/* Row header */}
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-black shrink-0">
@@ -326,17 +317,17 @@ export default function LabUploadPage() {
                           )}
                         </div>
 
-                        {/* Fields — stacked on mobile, side by side on sm+ */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Test Category</Label>
+                        {/* ✅ 3 columns: test type, result value, unit */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="space-y-1.5 sm:col-span-1">
+                            <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Test Type</Label>
                             <Select onValueChange={v => updateTest(test.id, "testName", v)}>
                               <SelectTrigger className="h-12 rounded-xl bg-[#f0f6ff] border-blue-100 font-semibold text-slate-700 focus:ring-blue-300 w-full">
-                                <SelectValue placeholder="Choose test type" />
+                                <SelectValue placeholder="Choose test" />
                               </SelectTrigger>
                               <SelectContent>
                                 {TEST_TYPES.map(t => (
-                                  <SelectItem key={t} value={t} className="font-semibold">{t}</SelectItem>
+                                  <SelectItem key={t.name} value={t.name} className="font-semibold">{t.name}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -345,10 +336,22 @@ export default function LabUploadPage() {
                           <div className="space-y-1.5">
                             <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Result Value</Label>
                             <Input
-                              placeholder="e.g. 5.4 mmol/L"
+                              placeholder="e.g. 5.4"
                               className="h-12 rounded-xl bg-[#f0f6ff] border-blue-100 font-bold text-blue-700 focus-visible:ring-blue-300"
+                              value={test.resultValue}
                               onChange={e => updateTest(test.id, "resultValue", e.target.value)}
                               required
+                            />
+                          </div>
+
+                          {/* ✅ Unit field */}
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Unit</Label>
+                            <Input
+                              placeholder="e.g. mg/dL"
+                              className="h-12 rounded-xl bg-[#f0f6ff] border-blue-100 font-semibold text-slate-600 focus-visible:ring-blue-300"
+                              value={test.unit}
+                              onChange={e => updateTest(test.id, "unit", e.target.value)}
                             />
                           </div>
                         </div>
@@ -364,6 +367,7 @@ export default function LabUploadPage() {
                               <Input
                                 placeholder="Type the custom test name…"
                                 className="bg-transparent border-none focus-visible:ring-0 font-semibold text-slate-700 h-10 min-w-0"
+                                value={test.customTestName}
                                 onChange={e => updateTest(test.id, "customTestName", e.target.value)}
                                 required
                               />
@@ -374,13 +378,11 @@ export default function LabUploadPage() {
                     ))}
                   </div>
 
-                  {/* Add test */}
                   <button type="button" onClick={addTestField}
-                    className="w-full h-13 py-4 border-2 border-dashed border-blue-200 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-blue-400 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-all">
+                    className="w-full py-4 border-2 border-dashed border-blue-200 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-blue-400 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-all">
                     <PlusCircle size={17} /> Add Another Test
                   </button>
 
-                  {/* Submit */}
                   <button type="submit" disabled={loading}
                     className="w-full py-5 bg-[#003a66] hover:bg-[#004f8c] disabled:opacity-60 text-white rounded-2xl font-black uppercase text-sm tracking-widest flex items-center justify-center gap-3 transition-all shadow-lg shadow-blue-900/20">
                     {loading
@@ -391,7 +393,7 @@ export default function LabUploadPage() {
               </div>
             </main>
 
-            {/* ══════════════ RIGHT PANEL — desktop only ══════════════ */}
+            {/* Right panel — desktop */}
             <aside className="hidden lg:flex w-72 border-l border-blue-100 bg-white flex-col shrink-0">
               <div className="px-5 py-5 border-b border-blue-50 shrink-0">
                 <div className="flex items-center gap-2 mb-4">
@@ -414,13 +416,11 @@ export default function LabUploadPage() {
         </div>
       </div>
 
-      {/* ══════════════ MOBILE RECENT DRAWER (bottom sheet) ══════════════ */}
-      <div className={`
-        fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl border-t border-blue-100 shadow-2xl
+      {/* Mobile bottom drawer */}
+      <div className={`fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl border-t border-blue-100 shadow-2xl
         transition-transform duration-300 ease-in-out lg:hidden
-        ${recentOpen ? "translate-y-0" : "translate-y-full"}
-      `} style={{ maxHeight: "75vh", display: "flex", flexDirection: "column" }}>
-        {/* Drawer handle & header */}
+        ${recentOpen ? "translate-y-0" : "translate-y-full"}`}
+        style={{ maxHeight: "75vh", display: "flex", flexDirection: "column" }}>
         <div className="px-5 pt-4 pb-4 border-b border-blue-50 shrink-0">
           <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
           <div className="flex items-center justify-between">
@@ -443,7 +443,6 @@ export default function LabUploadPage() {
             />
           </div>
         </div>
-        {/* Scrollable list */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
           <RecentList />
         </div>

@@ -132,11 +132,48 @@ export default function DoctorDashboard() {
   ).length;
 
   const stats = [
-    { label: "Pending Reviews", value: results.length, icon: Clock3,       color: "text-blue-600",    bg: "bg-blue-50"    },
-    { label: "Reviewed Today",  value: 0,              icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Critical Cases",  value: criticalCount,  icon: AlertCircle,  color: "text-red-600",     bg: "bg-red-50"     },
-    { label: "AI Analyses",     value: 0,              icon: TrendingUp,   color: "text-purple-600",  bg: "bg-purple-50"  },
-  ];
+  {
+    label: "Pending Reviews",
+    value: results.length,
+    icon: Clock3,
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+  },
+  {
+    label: "Reviewed Today",
+    value: results.filter(r => {
+      if (r.status !== "COMPLETED") return false;
+      const updated = new Date(r.updatedAt ?? r.createdAt);
+      const today = new Date();
+      return (
+        updated.getFullYear() === today.getFullYear() &&
+        updated.getMonth()    === today.getMonth()    &&
+        updated.getDate()     === today.getDate()
+      );
+    }).length,
+    icon: CheckCircle2,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+  },
+  {
+    label: "Critical Cases",
+    value: results.filter(r =>
+      r.status?.toLowerCase() === "critical"
+    ).length,
+    icon: AlertCircle,
+    color: "text-red-600",
+    bg: "bg-red-50",
+  },
+  {
+    label: "AI Analyses",
+    value: results.filter(r =>
+      r.aiInsight || r.interpretation
+    ).length,
+    icon: TrendingUp,
+    color: "text-purple-600",
+    bg: "bg-purple-50",
+  },
+];
 
   return (
     <div className="flex h-screen bg-[#f0f6ff] font-sans overflow-hidden">
