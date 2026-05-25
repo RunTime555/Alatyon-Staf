@@ -6,38 +6,38 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req, { params }) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const decoded = verifyToken(token);
-    if (!decoded?.id) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-
     const { id } = await params;
+    const cookieStore = await cookies();
+    
+    // 1. የኩኪ ስም ወደ "staff_token" ተቀይሯል
+    const token = cookieStore.get("staff_token")?.value;
+    if (!token) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    // 2. await ተጨምሯል
+    const decoded = await verifyToken(token);
+    if (!decoded?.id) return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
+
     const { finalComment, doctorNote, severity } = await req.json();
 
-    // Build interpretation — parsed by patient dashboard
-    // Format: "[SEVERITY] DOCTOR_NOTE: ... --- AI_ANALYSIS: ..."
     const parts = [];
     if (doctorNote?.trim())   parts.push(`DOCTOR_NOTE: ${doctorNote.trim()}`);
     if (finalComment?.trim()) parts.push(`AI_ANALYSIS: ${finalComment.trim()}`);
+    
     const body = parts.join("\n\n---\n\n");
     const severityTag = `[${(severity ?? "normal").toUpperCase()}]`;
     const interpretation = body ? `${severityTag} ${body}` : severityTag;
 
-    // ✅ Only update fields that exist in your Prisma schema
     await prisma.labResult.update({
       where: { id },
       data: {
         status:         "COMPLETED",
         interpretation: interpretation,
-        // doctorComment and reviewedAt are NOT in your schema — skip them
       },
     });
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("APPROVE:", err);
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+    console.error("APPROVE_ERROR:", err);
+    return NextResponse.json({ success: false, error: "Update failed" }, { status: 500 });
   }
 }

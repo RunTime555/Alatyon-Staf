@@ -7,11 +7,19 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // 1. የኩኪ ስም ከ "token" ወደ "staff_token" ተቀይሯል
+    const token = cookieStore.get("staff_token")?.value;
 
-    const decoded = verifyToken(token);
-    if (!decoded?.id) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    if (!token) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 2. await ተጨምሯል (ይህ በጣም አስፈላጊ ነው!)
+    const decoded = await verifyToken(token);
+    
+    if (!decoded?.id) {
+      return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
+    }
 
     const results = await prisma.labResult.findMany({
       where:   { status: "PENDING_DOCTOR" },
@@ -23,9 +31,9 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(results);
+    return NextResponse.json({ success: true, data: results });
   } catch (err) {
     console.error("GET_PENDING:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
 }

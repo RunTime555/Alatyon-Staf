@@ -9,21 +9,31 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function GET(req, { params }) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const decoded = verifyToken(token);
-    if (!decoded?.id) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-
+    // 1. Params await መደረግ አለበት
     const { id } = await params;
+    
+    const cookieStore = await cookies();
+    // 2. ኩኪ ስም ወደ "staff_token" ተቀይሯል
+    const token = cookieStore.get("staff_token")?.value;
+    
+    if (!token) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 3. verifyToken await መደረግ አለበት
+    const decoded = await verifyToken(token);
+    if (!decoded?.id) {
+      return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
+    }
 
     const result = await prisma.labResult.findUnique({
       where: { id },
       include: { patient: { select: { name: true } } },
     });
 
-    if (!result) return NextResponse.json({ error: "Result not found" }, { status: 404 });
+    if (!result) {
+      return NextResponse.json({ success: false, error: "Result not found" }, { status: 404 });
+    }
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const prompt = `
@@ -51,12 +61,12 @@ Provide a structured analysis with these sections:
 Keep it professional, concise, and clinically accurate.
     `.trim();
 
-    const aiRes    = await model.generateContent(prompt);
+    const aiRes = await model.generateContent(prompt);
     const analysis = aiRes.response.text();
 
-    return NextResponse.json({ analysis });
+    return NextResponse.json({ success: true, analysis });
   } catch (err) {
-    console.error("AI_ANALYZE:", err);
-    return NextResponse.json({ error: "AI analysis failed" }, { status: 500 });
+    console.error("AI_ANALYZE_ERROR:", err);
+    return NextResponse.json({ success: false, error: "AI analysis failed" }, { status: 500 });
   }
 }

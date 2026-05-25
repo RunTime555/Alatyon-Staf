@@ -10,15 +10,24 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 export async function PATCH(req) {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // 1. የኩኪ ስም ከ "token" ወደ "staff_token" ተቀይሯል
+    const token = cookieStore.get("staff_token")?.value;
+    
+    if (!token) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
 
-    const decoded = verifyToken(token);
-    if (!decoded?.id) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    // 2. await ተጨምሯል (verifyToken async ስለሆነ)
+    const decoded = await verifyToken(token);
+    
+    if (!decoded?.id) {
+      return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
+    }
 
     const { resultId, action, doctorNote } = await req.json();
+    
     if (!resultId || !action) {
-      return NextResponse.json({ error: "resultId and action are required" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "resultId and action are required" }, { status: 400 });
     }
 
     const result = await prisma.labResult.findUnique({
@@ -26,7 +35,9 @@ export async function PATCH(req) {
       include: { patient: { select: { name: true } } },
     });
 
-    if (!result) return NextResponse.json({ error: "Result not found" }, { status: 404 });
+    if (!result) {
+      return NextResponse.json({ success: false, error: "Result not found" }, { status: 404 });
+    }
 
     // ── REJECT ──
     if (action === "REJECT") {
@@ -44,14 +55,14 @@ export async function PATCH(req) {
 
     // ── APPROVE with AI ──
     if (action === "APPROVE") {
-      const model  = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const prompt = `
 Medical lab result: "${result.testName}" = ${result.testValue ?? "N/A"} ${result.unit ?? ""}.
 Doctor note: ${doctorNote ?? "None"}.
 Write a simple, reassuring patient explanation in plain language (max 80 words).
       `.trim();
 
-      const aiRes  = await model.generateContent(prompt);
+      const aiRes = await model.generateContent(prompt);
       const aiText = aiRes.response.text();
 
       const parts = [];
@@ -69,9 +80,9 @@ Write a simple, reassuring patient explanation in plain language (max 80 words).
       return NextResponse.json({ success: true, aiText });
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
   } catch (err) {
-    console.error("DOCTOR_ACTION:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("DOCTOR_ACTION_ERROR:", err);
+    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
 }
