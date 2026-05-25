@@ -30,14 +30,14 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // በኢሜይል አድራሻው ለይተን ዳይሬክት እናደርጋለን
+        // የ Next.js router.push ፈንታ window.location.href እንጠቀም
+        // ይህ Middleware-ው ኩኪውን በትክክል እንዲያነብ ያስገድደዋል
         if (email === 'doctor@alatyon.com') {
-          router.push("/doctor");
+          window.location.href = "/doctor";
         } else if (email === 'lab@alatyon.com') {
-          router.push("/lab/upload");
+          window.location.href = "/lab/upload";
         } else {
-          // ሌላ አድሚን ከሆነ
-          router.push("/admin/dashboard");
+          window.location.href = "/admin/dashboard";
         }
       } else {
         setError(data.error || "የመለያ መረጃው ስህተት ነው");
