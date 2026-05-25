@@ -6,16 +6,24 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(req, { params }) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("token")?.value;
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const decoded = verifyToken(token);
-    if (!decoded?.id) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-
     const { id } = await params;
+    const cookieStore = await cookies();
+    
+    // 1. የኩኪ ስም ከ "token" ወደ "staff_token" ተቀይሯል
+    const token = cookieStore.get("staff_token")?.value;
+    
+    if (!token) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
 
-    // ✅ No patientId filter — doctors can access any result
+    // 2. await ተጨምሯል (ይህ ወሳኝ ነው!)
+    const decoded = await verifyToken(token);
+    
+    if (!decoded?.id) {
+      return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
+    }
+
+    // Fetch lab result with patient data
     const result = await prisma.labResult.findUnique({
       where: { id },
       include: {
@@ -41,12 +49,12 @@ export async function GET(req, { params }) {
     });
 
     if (!result) {
-      return NextResponse.json({ error: "Result not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "Result not found" }, { status: 404 });
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, data: result });
   } catch (err) {
-    console.error("GET_RESULT:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("GET_RESULT_ERROR:", err);
+    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
 }
