@@ -7,16 +7,13 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    // 1. የኩኪ ስም ከ "token" ወደ "staff_token" ተቀይሯል
     const token = cookieStore.get("staff_token")?.value;
 
     if (!token) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. await ተጨምሯል (ይህ በጣም አስፈላጊ ነው!)
     const decoded = await verifyToken(token);
-    
     if (!decoded?.id) {
       return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
     }
@@ -29,6 +26,8 @@ export async function GET() {
           select: { name: true, mrn: true },
         },
       },
+      // ✅ FIX: severity is already included by default (no select = all fields returned)
+      // This comment is here just to confirm — findMany with include returns all scalar fields
     });
 
     return NextResponse.json({ success: true, data: results });

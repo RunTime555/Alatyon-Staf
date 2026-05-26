@@ -1,7 +1,7 @@
 "use client";
 import { use, useState, useEffect } from "react";
 import {
-  Brain, CheckCircle, Loader2, ArrowLeft, User2,
+  Brain, CheckCircle, Loader2, ArrowLeft,
   FlaskConical, FileText, AlertCircle, XCircle,
   Stethoscope, TrendingUp, Calendar, Hash,
   ClipboardList, Sparkles, ChevronDown, Activity
@@ -18,7 +18,6 @@ const STATUS_STYLE = {
 const getStatusStyle = (s) =>
   STATUS_STYLE[s] ?? { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200", label: s ?? "Unknown" };
 
-// Severity options the doctor picks
 const SEVERITY_OPTIONS = [
   { value: "normal",   label: "Normal",   color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
   { value: "elevated", label: "Elevated", color: "bg-amber-50 text-amber-700 border-amber-200",       dot: "bg-amber-500"   },
@@ -27,7 +26,7 @@ const SEVERITY_OPTIONS = [
 
 export default function ReviewPage({ params }) {
   const { id } = use(params);
-  const router = useRouter();
+  const router  = useRouter();
 
   const [data, setData]               = useState(null);
   const [loadError, setLoadError]     = useState("");
@@ -36,7 +35,7 @@ export default function ReviewPage({ params }) {
   const [isSaving, setIsSaving]       = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [doctorNote, setDoctorNote]   = useState("");
-  const [severity, setSeverity]       = useState("normal");   // doctor picks this
+  const [severity, setSeverity]       = useState("normal");
   const [showReject, setShowReject]   = useState(false);
   const [rejectNote, setRejectNote]   = useState("");
   const [done, setDone]               = useState(false);
@@ -47,8 +46,10 @@ export default function ReviewPage({ params }) {
     fetch(`/api/lab/result/${id}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(d => {
-        setData(d);
-        if (d?.doctorComment) setDoctorNote(d.doctorComment);
+        // ✅ FIX: API returns { success, data } — read d.data, not d
+        const result = d?.data ?? d;
+        setData(result);
+        if (result?.doctorComment) setDoctorNote(result.doctorComment);
       })
       .catch(e => setLoadError(`Failed to load result (${e}). Please go back and try again.`));
   }, [id]);
@@ -80,7 +81,7 @@ export default function ReviewPage({ params }) {
       if (res.ok) { setDone(true); setTimeout(() => router.push("/doctor"), 1800); }
       else { const d = await res.json(); setActionError(d.error || "Failed to approve."); }
     } catch { setActionError("Network error while approving."); }
-    finally { setIsSaving(false); }
+    finally   { setIsSaving(false); }
   };
 
   const reject = async () => {
@@ -96,10 +97,10 @@ export default function ReviewPage({ params }) {
       if (res.ok) router.push("/doctor");
       else { const d = await res.json(); setActionError(d.error || "Failed to reject."); }
     } catch { setActionError("Network error while rejecting."); }
-    finally { setIsRejecting(false); }
+    finally   { setIsRejecting(false); }
   };
 
-  // ── Loading / error states ──────────────────────────────
+  // ── Loading / error states ──────────────────────────────────────────────────
   if (!data && !loadError) return (
     <div className="min-h-screen bg-[#f0f6ff] flex items-center justify-center">
       <Loader2 className="animate-spin text-blue-500" size={32} />
@@ -113,26 +114,26 @@ export default function ReviewPage({ params }) {
     </div>
   );
 
-  // ── Field helpers — handle both field name variants ─────
-  const testName  = data.testName  ?? data.testType  ?? "—";
-  const testValue = data.testValue ?? data.value      ?? "—";
-  const unit      = data.unit      ?? "";
+  // ── Field helpers ───────────────────────────────────────────────────────────
+  const testName    = data.testName    ?? data.testType   ?? "—";
+  const testValue   = data.testValue   ?? data.value      ?? "—";
+  const unit        = data.unit        ?? "";
   const patientName = data.patient?.name ?? "—";
   const patientMrn  = data.patient?.mrn  ?? "—";
   const createdAt   = data.createdAt ? new Date(data.createdAt).toLocaleDateString() : "—";
 
   const st = getStatusStyle(data.status);
-  const isAlreadyReviewed = ["COMPLETED","Verified","REJECTED"].includes(data.status);
+  const isAlreadyReviewed = ["COMPLETED", "Verified", "REJECTED"].includes(data.status);
 
-  const allTests    = data.patient?.labResults ?? [];
+  const allTests     = data.patient?.labResults ?? [];
   const visibleTests = showAllTests ? allTests : allTests.slice(0, 5);
-  const currentSev  = SEVERITY_OPTIONS.find(s => s.value === severity) ?? SEVERITY_OPTIONS[0];
+  const currentSev   = SEVERITY_OPTIONS.find(s => s.value === severity) ?? SEVERITY_OPTIONS[0];
 
   return (
     <div className="min-h-screen bg-[#f0f6ff] font-sans pb-10">
       <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6">
 
-        {/* ── Top bar ── */}
+        {/* Top bar */}
         <div className="flex items-center justify-between mb-6">
           <button onClick={() => router.back()}
             className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-xs font-bold uppercase tracking-wide transition-colors">
@@ -157,7 +158,7 @@ export default function ReviewPage({ params }) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-          {/* ══ LEFT ═══════════════════════════════════════ */}
+          {/* ══ LEFT ══════════════════════════════════════════════════════════ */}
           <div className="space-y-4">
 
             {/* Patient info card */}
@@ -166,7 +167,7 @@ export default function ReviewPage({ params }) {
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-11 h-11 bg-gradient-to-br from-blue-400 to-[#003a66] rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0">
                   {patientName !== "—"
-                    ? patientName.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase()
+                    ? patientName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
                     : "PT"}
                 </div>
                 <div>
@@ -174,13 +175,12 @@ export default function ReviewPage({ params }) {
                   <p className="text-blue-600 text-xs font-bold font-mono">MRN: {patientMrn}</p>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { icon: Hash,         label: "Test",   value: testName },
-                  { icon: TrendingUp,   label: "Value",  value: unit ? `${testValue} ${unit}` : testValue },
-                  { icon: Calendar,     label: "Date",   value: createdAt },
-                  { icon: Activity,     label: "Status", value: st.label },
+                  { icon: Hash,       label: "Test",   value: testName },
+                  { icon: TrendingUp, label: "Value",  value: unit ? `${testValue} ${unit}` : testValue },
+                  { icon: Calendar,   label: "Date",   value: createdAt },
+                  { icon: Activity,   label: "Status", value: st.label },
                 ].map(({ icon: Icon, label, value }) => (
                   <div key={label} className="bg-[#f0f6ff] rounded-xl p-2.5">
                     <div className="flex items-center gap-1 mb-1">
@@ -203,7 +203,7 @@ export default function ReviewPage({ params }) {
                 <table className="w-full text-xs">
                   <thead className="bg-[#f7faff]">
                     <tr>
-                      {["Test Name","Value","Unit","Status"].map(h => (
+                      {["Test Name", "Value", "Unit", "Status"].map(h => (
                         <th key={h} className="px-4 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -222,7 +222,7 @@ export default function ReviewPage({ params }) {
               </div>
             </div>
 
-            {/* ── Severity selector (doctor picks) ── */}
+            {/* Severity selector */}
             {!isAlreadyReviewed && (
               <div className="bg-white rounded-2xl border border-blue-50 p-5 shadow-sm">
                 <div className="flex items-center gap-2 mb-3">
@@ -234,15 +234,11 @@ export default function ReviewPage({ params }) {
                 </p>
                 <div className="flex flex-col gap-2">
                   {SEVERITY_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setSeverity(opt.value)}
+                    <button key={opt.value} type="button" onClick={() => setSeverity(opt.value)}
                       className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all text-left
                         ${severity === opt.value
                           ? `${opt.color} border-current shadow-sm`
-                          : "border-slate-100 text-slate-500 hover:border-blue-200 hover:bg-[#f0f6ff]"}`}
-                    >
+                          : "border-slate-100 text-slate-500 hover:border-blue-200 hover:bg-[#f0f6ff]"}`}>
                       <span className={`w-3 h-3 rounded-full shrink-0 ${severity === opt.value ? opt.dot : "bg-slate-200"}`} />
                       {opt.label}
                       {opt.value === "critical" && (
@@ -268,7 +264,7 @@ export default function ReviewPage({ params }) {
                   <table className="w-full text-xs">
                     <thead className="bg-[#f7faff]">
                       <tr>
-                        {["Test","Value","Date","Status"].map(h => (
+                        {["Test", "Value", "Date", "Status"].map(h => (
                           <th key={h} className="px-3 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -315,7 +311,7 @@ export default function ReviewPage({ params }) {
               />
             </div>
 
-            {/* Reject button */}
+            {/* Reject */}
             {!isAlreadyReviewed && (
               <>
                 <button onClick={() => setShowReject(v => !v)}
@@ -341,7 +337,7 @@ export default function ReviewPage({ params }) {
             )}
           </div>
 
-          {/* ══ RIGHT (AI panel) ════════════════════════════ */}
+          {/* ══ RIGHT (AI panel) ══════════════════════════════════════════════ */}
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
@@ -364,16 +360,14 @@ export default function ReviewPage({ params }) {
                 )}
               </div>
 
-              {/* Empty */}
+              {/* Empty state */}
               {!aiText && !isAnalyzing && (
                 <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-blue-100 rounded-2xl">
                   <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
                     <FileText size={24} className="text-blue-300" />
                   </div>
                   <p className="text-slate-500 font-bold text-sm">No AI analysis yet</p>
-                  <p className="text-slate-400 text-xs mt-1 max-w-xs">
-                    Click "Generate Analysis" to get an AI-powered diagnostic summary.
-                  </p>
+                  <p className="text-slate-400 text-xs mt-1 max-w-xs">Click "Generate Analysis" to get an AI-powered diagnostic summary.</p>
                 </div>
               )}
 
@@ -388,7 +382,7 @@ export default function ReviewPage({ params }) {
 
               {/* AI result */}
               {aiText && !isAnalyzing && (
-                <div className="space-y-4 animate-in fade-in duration-500">
+                <div className="space-y-4">
                   <div>
                     <div className="flex items-center gap-1.5 mb-2">
                       <Sparkles size={12} className="text-purple-500" />
@@ -416,7 +410,7 @@ export default function ReviewPage({ params }) {
                 </div>
               )}
 
-              {/* Already reviewed */}
+              {/* Already reviewed — show stored interpretation */}
               {isAlreadyReviewed && data?.interpretation && !aiText && (
                 <div className="space-y-4">
                   <div className="bg-[#f0f6ff] rounded-xl p-4">

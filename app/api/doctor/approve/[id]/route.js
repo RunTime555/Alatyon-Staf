@@ -8,12 +8,9 @@ export async function POST(req, { params }) {
   try {
     const { id } = await params;
     const cookieStore = await cookies();
-    
-    // 1. የኩኪ ስም ወደ "staff_token" ተቀይሯል
     const token = cookieStore.get("staff_token")?.value;
     if (!token) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
-    // 2. await ተጨምሯል
     const decoded = await verifyToken(token);
     if (!decoded?.id) return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
 
@@ -22,7 +19,7 @@ export async function POST(req, { params }) {
     const parts = [];
     if (doctorNote?.trim())   parts.push(`DOCTOR_NOTE: ${doctorNote.trim()}`);
     if (finalComment?.trim()) parts.push(`AI_ANALYSIS: ${finalComment.trim()}`);
-    
+
     const body = parts.join("\n\n---\n\n");
     const severityTag = `[${(severity ?? "normal").toUpperCase()}]`;
     const interpretation = body ? `${severityTag} ${body}` : severityTag;
@@ -32,6 +29,9 @@ export async function POST(req, { params }) {
       data: {
         status:         "COMPLETED",
         interpretation: interpretation,
+        severity:       severity ?? "normal",
+        // ✅ FIX: set reviewedAt so "Reviewed Today" card counts correctly
+        reviewedAt:     new Date(),
       },
     });
 
