@@ -7,6 +7,7 @@ import {
   ChevronRight, Activity, Users
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard",      href: "/lab",        active: true },
@@ -14,16 +15,16 @@ const NAV_ITEMS = [
   { icon: ClipboardCheck,  label: "Recent Uploads", href: "/lab/recent" },
 ];
 
-// ✅ Correct status values
 const STATUS_MAP = {
-  PENDING_DOCTOR: { bg: "bg-amber-50",   text: "text-amber-600",   dot: "bg-amber-400",   label: "Pending" },
+  PENDING_DOCTOR: { bg: "bg-amber-50",   text: "text-amber-600",   dot: "bg-amber-400",   label: "Pending"  },
   COMPLETED:      { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400", label: "Reviewed" },
   Verified:       { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-400", label: "Reviewed" },
   REJECTED:       { bg: "bg-red-50",     text: "text-red-600",     dot: "bg-red-400",     label: "Rejected" },
 };
 const getStatus = (s) => STATUS_MAP[s] ?? { bg: "bg-blue-50", text: "text-blue-600", dot: "bg-blue-400", label: "Uploaded" };
 
-function Sidebar({ open, onClose }) {
+// ✅ FIX: onLogout prop added
+function Sidebar({ open, onClose, onLogout }) {
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={onClose} />}
@@ -56,7 +57,10 @@ function Sidebar({ open, onClose }) {
             <p className="text-white text-xs font-bold truncate">Lab Technician</p>
             <p className="text-white/40 text-[10px]">Alatyon Lab</p>
           </div>
-          <LogOut size={14} className="text-white/30 hover:text-white cursor-pointer" />
+          {/* ✅ FIX: logout button wired */}
+          <button onClick={onLogout} title="Log out">
+            <LogOut size={14} className="text-white/30 hover:text-red-400 cursor-pointer transition-colors" />
+          </button>
         </div>
       </aside>
     </>
@@ -64,19 +68,25 @@ function Sidebar({ open, onClose }) {
 }
 
 export default function LabDashboard() {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [recent, setRecent]           = useState([]);
   const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
     fetch("/api/lab/recent")
-      .then(r => r.json())
-      .then(d => { if (d.success) setRecent(d.data); setLoading(false); })
+      .then(r => { if (r.status === 401) { router.push("/login"); return null; } return r.json(); })
+      .then(d => { if (d?.success) setRecent(d.data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
+  // ✅ FIX: functional logout
+  const handleLogout = async () => {
+    try { await fetch("/api/auth/logout", { method: "POST" }); } catch (_) {}
+    router.push("/login");
+  };
+
   const total    = recent.length;
-  // ✅ Fixed status values
   const pending  = recent.filter(r => r.status === "PENDING_DOCTOR").length;
   const reviewed = recent.filter(r => ["COMPLETED","Verified"].includes(r.status)).length;
   const patients = new Set(recent.map(r => r.patient?.mrn)).size;
@@ -91,7 +101,8 @@ export default function LabDashboard() {
   return (
     <div className="min-h-screen bg-[#eef3fa] font-sans">
       <div className="flex h-screen overflow-hidden">
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        {/* ✅ FIX: pass onLogout to Sidebar */}
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <header className="bg-white border-b border-blue-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30 shrink-0">
             <button onClick={() => setSidebarOpen(true)} className="md:hidden w-9 h-9 rounded-xl bg-[#eef3fa] flex items-center justify-center text-slate-600 shrink-0">
@@ -133,8 +144,8 @@ export default function LabDashboard() {
                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Quick Actions</p>
                 <div className="space-y-2">
                   {[
-                    { label: "Upload New Results",  href: "/lab/upload",  icon: FlaskConical,   color: "bg-blue-50 text-blue-600" },
-                    { label: "View Recent Uploads", href: "/lab/recent",  icon: ClipboardCheck, color: "bg-emerald-50 text-emerald-600" },
+                    { label: "Upload New Results",  href: "/lab/upload", icon: FlaskConical,   color: "bg-blue-50 text-blue-600" },
+                    { label: "View Recent Uploads", href: "/lab/recent", icon: ClipboardCheck, color: "bg-emerald-50 text-emerald-600" },
                   ].map(({ label, href, icon: Icon, color }) => (
                     <Link key={label} href={href}
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#f0f6ff] transition-all group">

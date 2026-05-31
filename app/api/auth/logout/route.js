@@ -10,8 +10,7 @@ export async function POST(request) {
     const token = cookieStore.get("staff_token")?.value;
 
     // 2. እዚህ ቦታ ላይ በ lib/auth.js ውስጥ 'blacklistToken' የሚባል ፋንክሽን ካለህ 
-    //    await blacklistToken(token) ብለህ መጠቀም ትችላለህ። 
-    //    ካልሆነ ግን በቀጥታ ኩኪውን መሰረዝ በቂ ነው።
+    
 
     // 3. ወደ login ገጽ የሚወስድ ምላሽ እንፈጥራለን
     const res = NextResponse.json({ success: true, message: "Logged out successfully" });

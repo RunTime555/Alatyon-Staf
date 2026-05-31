@@ -3,25 +3,27 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Beaker, FlaskConical, ClipboardCheck, LayoutDashboard,
-  Settings, LogOut, Menu, X, Search, Filter,
-  Clock3, CheckCircle2, AlertCircle, ChevronDown
+  LogOut, Menu, X, Search, Filter,
+  Clock3, CheckCircle2, XCircle, ChevronDown
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard",      href: "/lab" },
   { icon: FlaskConical,    label: "Upload Results", href: "/lab/upload" },
   { icon: ClipboardCheck,  label: "Recent Uploads", href: "/lab/recent", active: true },
-  
 ];
 
+// ✅ FIX: keys match actual DB status values
 const STATUS_MAP = {
-  pending:  { bg: "bg-amber-50",   text: "text-amber-700",   dot: "bg-amber-400",   label: "Pending",  icon: Clock3 },
-  reviewed: { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-400", label: "Reviewed", icon: CheckCircle2 },
-  default:  { bg: "bg-blue-50",    text: "text-blue-700",    dot: "bg-blue-400",    label: "Uploaded", icon: FlaskConical },
+  PENDING_DOCTOR: { bg: "bg-amber-50",   text: "text-amber-700",   dot: "bg-amber-400",   label: "Pending",  icon: Clock3       },
+  COMPLETED:      { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-400", label: "Reviewed", icon: CheckCircle2 },
+  REJECTED:       { bg: "bg-red-50",     text: "text-red-700",     dot: "bg-red-400",     label: "Rejected", icon: XCircle      },
+  default:        { bg: "bg-blue-50",    text: "text-blue-700",    dot: "bg-blue-400",    label: "Uploaded", icon: FlaskConical },
 };
 
-function Sidebar({ open, onClose }) {
+function Sidebar({ open, onClose, onLogout }) {
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={onClose} />}
@@ -54,7 +56,9 @@ function Sidebar({ open, onClose }) {
             <p className="text-white text-xs font-bold truncate">Lab Technician</p>
             <p className="text-white/40 text-[10px]">Alatyon Lab</p>
           </div>
-          <LogOut size={14} className="text-white/30 hover:text-white cursor-pointer" />
+          <button onClick={onLogout} title="Log out">
+            <LogOut size={14} className="text-white/30 hover:text-red-400 cursor-pointer transition-colors" />
+          </button>
         </div>
       </aside>
     </>
@@ -62,41 +66,55 @@ function Sidebar({ open, onClose }) {
 }
 
 export default function LabRecentUploads() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [results, setResults]         = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [search, setSearch]           = useState("");
+  const router = useRouter();
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [results, setResults]           = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [search, setSearch]             = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [showFilter, setShowFilter]   = useState(false);
+  const [showFilter, setShowFilter]     = useState(false);
 
   useEffect(() => {
     fetch("/api/lab/recent")
-      .then(r => r.json())
-      .then(d => { if (d.success) setResults(d.data); setLoading(false); })
+      .then(r => { if (r.status === 401) { router.push("/login"); return null; } return r.json(); })
+      .then(d => { if (d?.success) setResults(d.data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
+  const handleLogout = async () => {
+    try { await fetch("/api/auth/logout", { method: "POST" }); } catch (_) {}
+    router.push("/login");
+  };
+
   const filtered = useMemo(() => results.filter(r => {
     const matchSearch =
+      !search ||
       r.testName?.toLowerCase().includes(search.toLowerCase()) ||
       r.patient?.name?.toLowerCase().includes(search.toLowerCase()) ||
       r.patient?.mrn?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || r.status === statusFilter;
+
+    // ✅ FIX: filter uses actual DB status values
+    const matchStatus =
+      statusFilter === "all" ||
+      statusFilter === r.status;
+
     return matchSearch && matchStatus;
   }), [results, search, statusFilter]);
 
+  // ✅ FIX: counts use actual DB status values
   const counts = {
-    all:      results.length,
-    pending:  results.filter(r => r.status === "pending").length,
-    reviewed: results.filter(r => r.status === "reviewed").length,
+    all:            results.length,
+    PENDING_DOCTOR: results.filter(r => r.status === "PENDING_DOCTOR").length,
+    COMPLETED:      results.filter(r => r.status === "COMPLETED").length,
+    REJECTED:       results.filter(r => r.status === "REJECTED").length,
   };
 
   return (
     <div className="min-h-screen bg-[#eef3fa] font-sans">
       <div className="flex h-screen overflow-hidden">
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Topbar */}
+
           <header className="bg-white border-b border-blue-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-30 shrink-0">
             <button onClick={() => setSidebarOpen(true)} className="md:hidden w-9 h-9 rounded-xl bg-[#eef3fa] flex items-center justify-center text-slate-600 shrink-0">
               <Menu size={18} />
@@ -110,18 +128,21 @@ export default function LabRecentUploads() {
             <button onClick={() => setShowFilter(v => !v)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shrink-0
                 ${showFilter ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-blue-100 hover:bg-[#eef3fa]"}`}>
-              <Filter size={13} /> Filter <ChevronDown size={12} className={`transition-transform ${showFilter ? "rotate-180" : ""}`} />
+              <Filter size={13} /> Filter
+              <ChevronDown size={12} className={`transition-transform ${showFilter ? "rotate-180" : ""}`} />
             </button>
           </header>
 
           <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+
             {/* Filter bar */}
             {showFilter && (
               <div className="bg-white rounded-2xl border border-blue-100 p-4 mb-4 flex flex-wrap gap-2">
                 {[
-                  { key: "all",      label: `All (${counts.all})` },
-                  { key: "pending",  label: `Pending (${counts.pending})` },
-                  { key: "reviewed", label: `Reviewed (${counts.reviewed})` },
+                  { key: "all",            label: `All (${counts.all})` },
+                  { key: "PENDING_DOCTOR", label: `Pending (${counts.PENDING_DOCTOR})` },
+                  { key: "COMPLETED",      label: `Reviewed (${counts.COMPLETED})` },
+                  { key: "REJECTED",       label: `Rejected (${counts.REJECTED})` },
                 ].map(({ key, label }) => (
                   <button key={key} onClick={() => setStatusFilter(key)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all
@@ -132,7 +153,6 @@ export default function LabRecentUploads() {
               </div>
             )}
 
-            {/* Page title */}
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h1 className="text-base font-black text-slate-800">Recent Uploads</h1>
@@ -157,11 +177,10 @@ export default function LabRecentUploads() {
               </div>
             ) : (
               <div className="space-y-3">
-                {filtered.map((item, i) => {
+                {filtered.map((item) => {
                   const st = STATUS_MAP[item.status] ?? STATUS_MAP.default;
-                  const StatusIcon = st.icon;
                   return (
-                    <div key={i} className="bg-white rounded-2xl border border-blue-50 p-4 sm:p-5 flex items-center gap-4 hover:border-blue-200 hover:shadow-sm transition-all">
+                    <div key={item.id} className="bg-white rounded-2xl border border-blue-50 p-4 sm:p-5 flex items-center gap-4 hover:border-blue-200 hover:shadow-sm transition-all">
                       <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
                         <FlaskConical size={18} className="text-blue-600" />
                       </div>
@@ -177,7 +196,10 @@ export default function LabRecentUploads() {
                         </p>
                       </div>
                       <div className="text-right shrink-0 hidden sm:block">
-                        <p className="text-xs font-black text-blue-700">{item.resultValue}</p>
+                        {/* ✅ FIX: schema field is testValue not resultValue */}
+                        <p className="text-xs font-black text-blue-700">
+                          {item.testValue ?? "—"} {item.unit ?? ""}
+                        </p>
                         {item.createdAt && (
                           <p className="text-[10px] text-slate-400 mt-0.5">
                             {new Date(item.createdAt).toLocaleDateString()}
