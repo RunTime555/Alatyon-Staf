@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth";
-import {prisma} from "@/lib/prisma"; // ✅ default import
+import {prisma} from "@/lib/prisma"; 
 
 export async function GET(req, { params }) {
   try {
@@ -48,7 +48,7 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: "Result not found" }, { status: 404 });
     }
 
-    // ✅ directly result ን መልስ — wrapper የለም
+   
     return NextResponse.json(result);
 
   } catch (err) {

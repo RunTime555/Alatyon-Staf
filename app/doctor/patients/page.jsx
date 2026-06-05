@@ -75,7 +75,7 @@ export default function DoctorPatients() {
       .then(r => { if (r.status === 401) { router.push("/login"); return null; } return r.json(); })
       .then(d => {
         if (!d) return;
-        // ✅ FIX: read d.data not d
+        
         setResults(Array.isArray(d.data) ? d.data : Array.isArray(d) ? d : []);
         setLoading(false);
       })

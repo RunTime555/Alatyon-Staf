@@ -26,8 +26,7 @@ export async function GET() {
           select: { name: true, mrn: true },
         },
       },
-      // ✅ FIX: severity is already included by default (no select = all fields returned)
-      // This comment is here just to confirm — findMany with include returns all scalar fields
+     
     });
 
     return NextResponse.json({ success: true, data: results });

@@ -23,7 +23,7 @@ const STATUS_COLORS = {
   normal:    { bg: "bg-emerald-50", text: "text-emerald-600", dot: "bg-emerald-500", label: "Normal"    },
 };
 
-// ✅ FIX: onLogout prop added
+
 function Sidebar({ open, onClose, collapsed, onLogout }) {
   return (
     <>
@@ -55,7 +55,7 @@ function Sidebar({ open, onClose, collapsed, onLogout }) {
             <div className="flex items-center gap-3 px-2 py-2">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-black shrink-0">DR</div>
               <div className="flex-1 min-w-0"><p className="text-white text-xs font-bold truncate">Dr. User</p><p className="text-white/40 text-[10px]">Physician</p></div>
-              {/* ✅ FIX: logout wired */}
+            
               <button onClick={onLogout} title="Log out" className="text-white/30 hover:text-red-400 transition-colors"><LogOut size={14} /></button>
             </div>
           ) : (
@@ -85,14 +85,14 @@ export default function AIReports() {
       .then(r => { if (r.status === 401) { router.push("/login"); return null; } return r.json(); })
       .then(d => {
         if (!d) return;
-        // ✅ FIX: read d.data not d
+     
         setReports(Array.isArray(d.data) ? d.data : Array.isArray(d) ? d : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
 
-  // ✅ FIX: functional logout
+ 
   const handleLogout = async () => {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch (_) {}
     router.push("/login");

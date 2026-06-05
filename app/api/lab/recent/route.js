@@ -7,14 +7,14 @@ import {prisma }from "@/lib/prisma";
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    // 1. የኩኪ ስም ከ "token" ወደ "staff_token" ተቀይሯል
+   
     const token = cookieStore.get("staff_token")?.value;
 
     if (!token) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. verifyToken async ስለሆነ await መጨመር አለበት
+    
     const decoded = await verifyToken(token);
     
     if (!decoded?.id) {

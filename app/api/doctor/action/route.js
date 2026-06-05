@@ -10,14 +10,14 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 export async function PATCH(req) {
   try {
     const cookieStore = await cookies();
-    // 1. የኩኪ ስም ከ "token" ወደ "staff_token" ተቀይሯል
+   
     const token = cookieStore.get("staff_token")?.value;
     
     if (!token) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. await ተጨምሯል (verifyToken async ስለሆነ)
+    
     const decoded = await verifyToken(token);
     
     if (!decoded?.id) {

@@ -9,18 +9,18 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function GET(req, { params }) {
   try {
-    // 1. Params await መደረግ አለበት
+    
     const { id } = await params;
     
     const cookieStore = await cookies();
-    // 2. ኩኪ ስም ወደ "staff_token" ተቀይሯል
+   
     const token = cookieStore.get("staff_token")?.value;
     
     if (!token) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    // 3. verifyToken await መደረግ አለበት
+   
     const decoded = await verifyToken(token);
     if (!decoded?.id) {
       return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });

@@ -102,15 +102,14 @@ export default function PendingReviews() {
       r.patient?.name?.toLowerCase().includes(search.toLowerCase()) ||
       r.patient?.mrn?.toLowerCase().includes(search.toLowerCase());
 
-    // ✅ FIX: filter by r.severity not r.status
-    // severity can be null for newly uploaded results — treat null as "normal"
+    
     const sev = r.severity ?? "normal";
     const matchFilter = filter === "all" || sev === filter;
 
     return matchSearch && matchFilter;
   });
 
-  // ✅ FIX: counts use r.severity not r.status
+ 
   const counts = {
     all:      results.length,
     critical: results.filter(r => r.severity === "critical").length,
@@ -183,7 +182,7 @@ export default function PendingReviews() {
             <div className="space-y-3">
               {filtered.map((item) => {
                 const st  = STATUS_COLORS[item.status] ?? STATUS_COLORS.PENDING_DOCTOR;
-                // ✅ severity badge colors
+            
                 const sev = item.severity;
                 const sevStyle = sev === "critical"
                   ? "bg-red-50 text-red-600"
@@ -205,7 +204,7 @@ export default function PendingReviews() {
                         <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${st.bg} ${st.text}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />{st.label}
                         </span>
-                        {/* ✅ severity badge — shown separately */}
+                       
                         {sevStyle && (
                           <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${sevStyle}`}>
                             {sev.charAt(0).toUpperCase() + sev.slice(1)}
