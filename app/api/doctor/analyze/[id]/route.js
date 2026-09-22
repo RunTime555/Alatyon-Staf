@@ -7,6 +7,18 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Strips common Markdown artifacts (headers, bold/italic asterisks,
+// bullet dashes) in case the model adds them despite instructions.
+function stripMarkdown(text) {
+  return text
+    .replace(/^#{1,6}\s*/gm, "")     // ### Headers
+    .replace(/\*\*(.*?)\*\*/g, "$1") // **bold**
+    .replace(/\*(.*?)\*/g, "$1")     // *italic*
+    .replace(/^[-*]\s+/gm, "")       // - bullet or * bullet
+    .replace(/\n{3,}/g, "\n\n")      // collapse extra blank lines
+    .trim();
+}
+
 export async function GET(req, { params }) {
   try {
     
@@ -35,34 +47,26 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: false, error: "Result not found" }, { status: 404 });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = `
-You are a clinical decision-support AI assistant helping a doctor review a lab result.
+A patient just received this lab result:
 
-Patient: ${result.patient?.name ?? "Unknown"}
 Test: ${result.testName}
-Category: ${result.category ?? "General"}
 Result Value: ${result.testValue ?? "N/A"} ${result.unit ?? ""}
 
-Provide a structured analysis with these sections:
+Write a short message directly to the patient explaining, in plain everyday language:
+1. What this result means for them.
+2. Simple, practical advice on what they should do next (e.g. see a doctor, no action needed, retest, lifestyle tip).
 
-1. INTERPRETATION
-   What does this value indicate? Normal, elevated, or critically abnormal?
-
-2. CLINICAL IMPLICATIONS
-   What conditions or diagnoses should the doctor consider?
-
-3. RECOMMENDED ACTIONS
-   What follow-up tests or actions do you recommend?
-
-4. PATIENT MESSAGE (plain language, max 60 words)
-   A simple explanation the doctor can share with the patient.
-
-Keep it professional, concise, and clinically accurate.
+Rules:
+- 2 to 4 short sentences total. Nothing longer.
+- Plain text only. No Markdown, no headers, no asterisks, no bullet points, no numbering, no symbols like # or *.
+- Do not include a greeting, sign-off, or disclaimer.
+- Write it as if speaking directly to the patient ("you"), in a warm but clear tone.
     `.trim();
 
     const aiRes = await model.generateContent(prompt);
-    const analysis = aiRes.response.text();
+    const analysis = stripMarkdown(aiRes.response.text());
 
     return NextResponse.json({ success: true, analysis });
   } catch (err) {
